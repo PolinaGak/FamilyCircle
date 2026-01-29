@@ -25,6 +25,8 @@ from app.models.photo import Photo
 from app.models.album_member import AlbumMember
 from app.models.invitation_code import InvitationCode
 
+from app.core.config import settings
+DATABASE_URL = settings.DATABASE_URL
 
 load_dotenv()
 
@@ -44,13 +46,6 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-def get_url():
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
-    host = os.getenv("POSTGRES_HOST")
-    db = os.getenv("POSTGRES_DB")
-    return f"postgresql://{user}:{password}@{host}/{db}"
-
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -64,9 +59,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = get_url()
     context.configure(
-        url=url,
+        url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -84,7 +78,7 @@ def run_migrations_online() -> None:
 
     """
     connectable = create_engine(
-        get_url(),
+        DATABASE_URL,
         poolclass=pool.NullPool,
     )
 
