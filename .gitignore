@@ -1,3 +1,7 @@
+# Общие системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
 # Dependencies
 node_modules/
 .pnp
@@ -13,7 +17,6 @@ build/
 dist/
 
 # Misc
-.DS_Store
 .env.local
 .env.development.local
 .env.test.local
@@ -30,8 +33,14 @@ yarn-error.log*
 *.swp
 *.swo
 
-# OS
-Thumbs.db
+# Временные файлы
+*.tmp
+*.temp
+*~
+
+# Логи
+*.log
+
 
 # Frontend
 frontend/node_modules/
