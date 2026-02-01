@@ -16,6 +16,11 @@ class UserCRUD:
     """CRUD операции для пользователей"""
 
     @staticmethod
+    def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+        """Получить пользователя по ID"""
+        return db.query(User).filter(User.id == user_id).first()
+
+    @staticmethod
     def get_user_by_email(db: Session, email: EmailStr) -> Optional[User]:
         """Получить пользователя по email (case-insensitive)"""
         return db.query(User).filter(User.email.ilike(email)).first()
@@ -49,3 +54,29 @@ class UserCRUD:
             logger.error(f"Ошибка при создании пользователя: {str(e)}")
             db.rollback()
             raise
+
+    @staticmethod
+    def verify_user_email(db: Session, user_id: int) -> bool:
+        """Подтвердить email пользователя"""
+        db_user = UserCRUD.get_user_by_id(db, user_id)
+        if not db_user:
+            logger.warning(f"User {user_id} not found for verification")
+            return False
+
+        if db_user.is_verified:
+            logger.info(f"User {user_id} already verified")
+            return True
+
+        db_user.is_verified = True
+
+        try:
+            db.commit()
+            db.refresh(db_user)
+            logger.info(f"User {user_id} email verified successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Error verifying user {user_id}: {str(e)}")
+            db.rollback()
+            return False
+
+user_crud = UserCRUD()
