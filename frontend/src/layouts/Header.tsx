@@ -1,9 +1,18 @@
 // src/layouts/Header.tsx
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './MainLayout.css';
 
 const Header: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="site-layout-background" style={{ 
       padding: '0 24px', 
@@ -18,20 +27,42 @@ const Header: React.FC = () => {
       </div>
       
       <div>
-        {/* Кнопка входа - показываем, если пользователь не авторизован */}
-        <Link 
-          to="/login" 
-          style={{
-            background: '#7b68ee',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            textDecoration: 'none',
-            fontWeight: '500',
-          }}
-        >
-          Войти
-        </Link>
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span style={{ color: '#7b68ee' }}>
+              {user.name}
+            </span>
+            <button 
+              onClick={handleLogout}
+              style={{
+                background: '#ff6b6b',
+                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '500',
+              }}
+            >
+              Выйти
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => navigate('/login')}
+            style={{
+              background: '#7b68ee',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '500',
+            }}
+          >
+            Войти
+          </button>
+        )}
       </div>
     </div>
   );
