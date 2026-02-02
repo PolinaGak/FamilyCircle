@@ -1,0 +1,79 @@
+:root {
+  --primary-color: #7b68ee;         
+  --primary-light: #a594ff;        
+  --secondary-color: #ff6b6b;     
+  --background-light: #f8f9fa;    
+  --text-dark: #2d3436;             
+}
+
+/* Общие стили для Ant Design компонентов */
+.ant-layout {
+  background: var(--background-light) !important;
+}
+
+.ant-layout-sider {
+  background: linear-gradient(180deg, #f0e9ff, #e2d6ff) !important;
+  border-right: 2px solid #d8c8ff !important;
+}
+
+/* Логотип в сайдбаре */
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, #7b68ee, #a594ff);
+  border-bottom: 2px solid #d8c8ff;
+  padding: 0 16px;
+}
+
+.logo h2 {
+  color: white !important;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Стили для меню */
+.ant-menu {
+  background: transparent !important;
+  border-right: none !important;
+}
+
+.ant-menu-item {
+  margin: 4px 8px !important;
+  border-radius: 8px !important;
+  color: #5d5d5d !important;
+  font-weight: 500;
+}
+
+.ant-menu-item:hover {
+  background-color: rgba(123, 104, 238, 0.15) !important;
+  color: #7b68ee !important;
+}
+
+.ant-menu-item-selected {
+  background-color: #7b68ee !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(123, 104, 238, 0.3);
+}
+
+.ant-menu-item .anticon {
+  color: #7b68ee !important;
+}
+
+.ant-menu-item-selected .anticon {
+  color: white !important;
+}
+
+/* Контентная область */
+.site-layout-background {
+  background: white !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ant-layout-content {
+  padding: 24px !important;
+  background: var(--background-light) !important;
+}
