@@ -12,6 +12,8 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -82,6 +84,88 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Функция регистрации (ДОБАВЛЕНО)
+  const register = async (name: string, email: string, password: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+      // TODO: Заменить на реальный запрос к API
+      console.log('Попытка регистрации:', { name, email });
+      
+      // Базовая валидация на клиенте
+      if (!name || !email || !password) {
+        throw new Error('Все поля обязательны');
+      }
+      if (!/\d/.test(password)) {
+        throw new Error('Пароль должен содержать хотя бы одну цифру (0-9)');
+      }
+
+      if (!/[A-Z]/.test(password)) {
+        throw new Error('Пароль должен содержать хотя бы одну заглавную букву (A-Z)');
+      }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        throw new Error('Пароль должен содержать хотя бы один специальный символ (!@#$%^&* и т.д.)');
+      }
+      
+      if (password.length < 8) {
+        throw new Error('Пароль должен быть не менее 8 символов');
+      }
+
+      // Проверка email (простая)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Введите корректный email');
+      }
+
+      // Моковый пользователь (будет создан на сервере)
+      const mockUser: User = {
+        id: Date.now().toString(), // Генерируем уникальный ID
+        email: email,
+        name: name,
+      };
+
+      // Сохраняем в localStorage (имитируем успешную регистрацию и вход)
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      setUser(mockUser);
+      
+      console.log('Успешная регистрация и вход:', mockUser);
+    } catch (error) {
+      console.error('Ошибка регистрации:', error);
+      throw error; // Пробрасываем ошибку дальше, чтобы обработать в компоненте
+    } finally {
+      setIsLoading(false);
+    }
+  };
+    // Функция восстановления пароля (ДОБАВЛЯЕМ)
+    const resetPassword = async (email: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+        // TODO: Заменить на реальный запрос к API
+        console.log('Запрос на восстановление пароля для:', email);
+        
+        // Валидация email
+        if (!email) {
+        throw new Error('Введите email');
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+        throw new Error('Введите корректный email');
+        }
+
+        // Имитация успешной отправки
+        // В реальности здесь будет запрос к бэкенду
+        console.log('Инструкции по восстановлению пароля отправлены на:', email);
+        
+        // Можно добавить задержку для имитации запроса
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+    } catch (error) {
+        console.error('Ошибка восстановления пароля:', error);
+        throw error;
+    } finally {
+        setIsLoading(false);
+    }
+    };
   // Функция выхода
   const logout = () => {
     localStorage.removeItem('user');
@@ -89,10 +173,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('Пользователь вышел из системы');
   };
 
-  // Значение контекста
-  const value = {
+  // Значение контекста (обновлено - добавлен register)
+  const value: AuthContextType = {
     user,
     login,
+    register,
+    resetPassword,
     logout,
     isLoading,
   };

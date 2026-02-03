@@ -9,7 +9,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,19 +65,29 @@ const LoginPage: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Пароль
+                Пароль
             </label>
-            <input
-              type="password"
-              id="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Введите пароль"
-              required
-              disabled={isLoading}
-            />
-          </div>
+            <div className="password-input-wrapper">
+                <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                className="form-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Введите пароль"
+                required
+                disabled={isLoading}
+                />
+                <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+            </div>
+            </div>
 
           {error && (
             <div className="auth-error">
