@@ -1,16 +1,44 @@
+// src/pages/auth/LoginPage.tsx
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import './Auth.css'; 
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import './Auth.css';
 
 const LoginPage: React.FC = () => {
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Получаем путь, откуда пришли (чтобы вернуться после входа)
+  const from = (location.state as any)?.from?.pathname || '/dashboard';
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Email:', email);
-    console.log('Password:', password);
+    setError('');
+    setIsLoading(true);
+
+    // Валидация
+    if (!email || !password) {
+      setError('Пожалуйста, заполните все поля');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await login(email, password);
+      // Успешный вход - перенаправляем
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError('Неверный email или пароль');
+      console.error('Ошибка входа:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,26 +59,48 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ваш@email.com"
               required
+              disabled={isLoading}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Пароль
+                Пароль
             </label>
-            <input
-              type="password"
-              id="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Введите пароль"
-              required
-            />
-          </div>
+            <div className="password-input-wrapper">
+                <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                className="form-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Введите пароль"
+                required
+                disabled={isLoading}
+                />
+                <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+            </div>
+            </div>
 
-          <button type="submit" className="auth-button">
-            Войти
+          {error && (
+            <div className="auth-error">
+              {error}
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            className="auth-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Вход...' : 'Войти'}
           </button>
         </form>
 
@@ -60,6 +110,9 @@ const LoginPage: React.FC = () => {
           </Link>
           <Link to="/forgot-password" className="auth-link">
             Забыли пароль?
+          </Link>
+          <Link to="/" className="auth-link">
+            На главную
           </Link>
         </div>
       </div>

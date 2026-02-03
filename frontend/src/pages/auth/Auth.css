@@ -89,3 +89,84 @@
 .auth-link:hover {
   text-decoration: underline;
 }
+.auth-error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ffcdd2;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.auth-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.password-hints {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 0;
+  transition: color 0.3s;
+}
+
+.hint-valid {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.hint-invalid {
+  color: #757575;
+}
+/* Обертка для поля пароля с кнопкой */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.password-input-wrapper .form-input {
+  flex: 1;
+  padding-right: 45px; /* Оставляем место для кнопки */
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 8px;
+  color: #667eea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.password-toggle:hover {
+  background-color: rgba(102, 126, 234, 0.1);
+}
+
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.password-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
