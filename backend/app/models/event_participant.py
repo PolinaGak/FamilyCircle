@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, Enum, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
-from .enums import InvintationStatus
+from .enums import InvitationStatus
 from ..database import Base
 
 class EventParticipant(Base):
@@ -9,7 +9,7 @@ class EventParticipant(Base):
 
     event_id = Column(Integer, ForeignKey("event.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"), primary_key=True)
-    status = Enum(InvintationStatus, default=InvintationStatus.invited)
+    status = Column(Enum(InvitationStatus, default=InvitationStatus.invited))
 
     event = relationship("Event")
     user = relationship("User")

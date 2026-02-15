@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey, PrimaryKeyConstraint, Boolean, Enum
-from .enums import InvintationStatus
+from .enums import InvitationStatus
 from ..database import Base
 
 class AlbumMember(Base):
@@ -9,4 +9,4 @@ class AlbumMember(Base):
     album_id = Column(Integer, ForeignKey("album.id"))
     user_id = Column(Integer, ForeignKey("user.id"))
     can_edit = Column(Boolean, default=False)
-    status = Column(Enum(InvintationStatus), default=InvintationStatus.invited)
+    status = Column(Enum(InvitationStatus), default=InvitationStatus.invited)

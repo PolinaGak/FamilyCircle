@@ -13,4 +13,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_deleted = Column(Boolean, nullable=False, default=False, index=True)
     is_verified = Column(Boolean, nullable=False, default=False, index=True)
-    theme = Enum(ThemeType, default=ThemeType.light)
+    theme = Column(Enum(ThemeType), default=ThemeType.light, nullable=False)
