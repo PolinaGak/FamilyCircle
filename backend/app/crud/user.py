@@ -2,10 +2,12 @@ from typing import Optional
 from pydantic.v1 import EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+
+from app.models.enums import ThemeType
 from app.models.user import User
 from app.schemas.auth import UserCreate
 from datetime import datetime, timezone
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 import logging
 
 
@@ -41,7 +43,8 @@ class UserCRUD:
             name=new_user.name.strip(),
             created_at=datetime.now(timezone.utc),
             is_deleted=False,
-            is_verified=False
+            is_verified=False,
+            theme=ThemeType.light
         )
 
         try:
@@ -78,5 +81,40 @@ class UserCRUD:
             logger.error(f"Error verifying user {user_id}: {str(e)}")
             db.rollback()
             return False
+
+    @staticmethod
+    async def authenticate_user(
+            db: Session,
+            email: str,
+            password: str
+    ) -> User | None:
+        """
+        Аутентификация пользователя.
+        Возвращает User или None при ошибке.
+        """
+        try:
+            user = db.query(User).filter(
+                User.email == email,
+                User.is_deleted == False
+            ).first()
+
+            if not user:
+                logger.info(f"Login attempt - user not found: {email}")
+                return None
+
+            if not verify_password(password, user.password_hash):
+                logger.info(f"Login attempt - wrong password: {email}")
+                return None
+
+            if not user.is_verified:
+                logger.info(f"Login blocked: user {user.id} email not verified")
+                return user
+
+            logger.info(f"Successful login: {email}")
+            return user
+
+        except Exception as e:
+            logger.error(f"Authentication error for {email}: {str(e)}")
+            return None
 
 user_crud = UserCRUD()

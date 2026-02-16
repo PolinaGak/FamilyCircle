@@ -6,6 +6,9 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
+
+    DEBUG: bool = False
+
     # Database settings
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -30,10 +33,15 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str
     EMAIL_FROM: str
     EMAIL_FROM_NAME: str
+    SMTP_USE_TLS: bool
+    SMTP_USE_SSL: bool
 
     # Frontend URLs
     FRONTEND_URL: str
     VERIFY_EMAIL_URL: str
+
+    # Backend URLs
+    BACKEND_URL: str
 
     @property
     def DATABASE_URL(self) -> str:

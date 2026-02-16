@@ -1,19 +1,30 @@
+import random
+import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 from app.core.config import settings
 from app.core.email_utils import email_service
-from app.schemas.auth import UserCreate, UserLogin, UserResponse
+from app.models.user import User
+from app.schemas.auth import UserCreate, UserLogin, TokenResponse, UserResponse
 from app.database import get_db
 from app.crud import user_crud
-from app.core.security import decode_verification_token
+from datetime import datetime, timedelta
+from app.core.security import (
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+decode_verification_token
+)
 import logging
+
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-
+@router.post("/register")
 async def register(
         user: UserCreate,
         db: Session = Depends(get_db)
@@ -81,8 +92,6 @@ async def verify_email(
     if user:
         email_service.send_welcome_email(user.email, user.name)
 
-    # Редирект на страницу успеха
-    # Можно вернуть JSON или сделать редирект на фронтенд
     return {
         "success": True,
         "message": "Email успешно подтвержден! Теперь вы можете войти в систему.",
@@ -90,33 +99,51 @@ async def verify_email(
     }
 
 
-@router.post("/verify-email")
-async def verify_email(token: str):
-    """Подтверждение email по токену"""
-    try:
-        user_id = decode_verification_token(token)
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Неверный или истекший токен")
+@router.post("/login")
+async def login(
+        user_data: UserLogin,
+        response: Response,
+        db: Session = Depends(get_db)
+):
+    # Защита от timing attacks
+    base_delay = 0.5
+    random_delay = random.uniform(0, 0.3)
+    time.sleep(base_delay + random_delay)
 
-        user_crud.verify_user_email(user_id)
 
-        return {
-            "success": True,
-            "message": "Email успешно подтвержден!",
-            "data": {
-                "redirect_url": f"{settings.FRONTEND_URL}/login",
-                "show_notification": True,
-                "notification_message": "Email подтвержден! Теперь вы можете войти в систему.",
-                "auto_login": False
-            }
-        }
-    except Exception as e:
-        logger.error(f"Ошибка подтверждения email: {str(e)}")
-        return {
-            "success": False,
-            "message": "Ошибка подтверждения email",
-            "data": {
-                "redirect_url": f"{settings.FRONTEND_URL}/register",
-                "error": "invalid_token"
-            }
-        }
+    user = await  user_crud.authenticate_user(db, user_data.email, user_data.password)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail= "Неверный email или пароль",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ваш email не подтверждён! Проверьте вашу почту.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    access_token = create_access_token({"sub": str(user.id)})
+    refresh_token = create_refresh_token({"sub": str(user.id)})
+
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+
+    logger.info(f"User {user.id} logged in successfully")
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": UserResponse.from_orm(user)
+    }
