@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic.v1 import EmailStr
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -10,31 +10,40 @@ from datetime import datetime, timezone
 from app.core.security import get_password_hash, verify_password
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
 class UserCRUD:
     """CRUD операции для пользователей"""
 
+
     @staticmethod
     def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
-        """Получить пользователя по ID"""
         return db.query(User).filter(User.id == user_id).first()
 
     @staticmethod
-    def get_user_by_email(db: Session, email: EmailStr) -> Optional[User]:
-        """Получить пользователя по email (case-insensitive)"""
+    def get_user_by_email(db: Session, email: str) -> Optional[User]:
         return db.query(User).filter(User.email.ilike(email)).first()
 
     @staticmethod
-    def register_user(db: Session, new_user: UserCreate) -> User:
-        """Создать нового пользователя"""
+    def get_active_user_by_email(db: Session, email: str) -> Optional[User]:
+        """Получить активного (не удаленного) пользователя по email"""
+        return db.query(User).filter(
+            User.email.ilike(email),
+            User.is_deleted == False
+        ).first()
 
+    @staticmethod
+    def user_exists(db: Session, email: str) -> bool:
+        """Проверить существование пользователя по email"""
+        return db.query(User).filter(User.email.ilike(email)).first() is not None
+
+
+    @staticmethod
+    def register_user(db: Session, new_user: UserCreate) -> User:
         existing_user = UserCRUD.get_user_by_email(db, new_user.email)
         if existing_user:
             raise ValueError(f"Пользователь с email {new_user.email} уже существует")
-
 
         hashed_password = get_password_hash(new_user.password)
         db_user = User(
@@ -51,16 +60,15 @@ class UserCRUD:
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
-            logger.info(f"Создан новый пользователь: {db_user.id}, email: {db_user.email}")
+            logger.info(f"Created user: {db_user.id}, email: {db_user.email}")
             return db_user
         except Exception as e:
-            logger.error(f"Ошибка при создании пользователя: {str(e)}")
+            logger.error(f"Error creating user: {str(e)}")
             db.rollback()
             raise
 
     @staticmethod
     def verify_user_email(db: Session, user_id: int) -> bool:
-        """Подтвердить email пользователя"""
         db_user = UserCRUD.get_user_by_id(db, user_id)
         if not db_user:
             logger.warning(f"User {user_id} not found for verification")
@@ -82,21 +90,15 @@ class UserCRUD:
             db.rollback()
             return False
 
+
     @staticmethod
-    async def authenticate_user(
+    def authenticate_user(  # Убрал async
             db: Session,
             email: str,
             password: str
-    ) -> User | None:
-        """
-        Аутентификация пользователя.
-        Возвращает User или None при ошибке.
-        """
+    ) -> Optional[User]:
         try:
-            user = db.query(User).filter(
-                User.email == email,
-                User.is_deleted == False
-            ).first()
+            user = UserCRUD.get_active_user_by_email(db, email)
 
             if not user:
                 logger.info(f"Login attempt - user not found: {email}")
@@ -108,7 +110,7 @@ class UserCRUD:
 
             if not user.is_verified:
                 logger.info(f"Login blocked: user {user.id} email not verified")
-                return user
+                return None  # ВАЖНО: возвращаем None, а не пользователя!
 
             logger.info(f"Successful login: {email}")
             return user
@@ -116,5 +118,72 @@ class UserCRUD:
         except Exception as e:
             logger.error(f"Authentication error for {email}: {str(e)}")
             return None
+
+
+    @staticmethod
+    def update_password(db: Session, user_id: int, new_password: str) -> bool:
+        try:
+            user = UserCRUD.get_user_by_id(db, user_id)
+            if not user:
+                logger.warning(f"User {user_id} not found for password update")
+                return False
+
+            # Проверяем, что новый пароль отличается от старого
+            if verify_password(new_password, user.password_hash):
+                logger.warning(f"New password same as old for user {user_id}")
+                return False
+
+            user.password_hash = get_password_hash(new_password)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"Password updated for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating password for user {user_id}: {str(e)}")
+            db.rollback()
+            return False
+
+    @staticmethod
+    def get_user_by_email_for_reset(db: Session, email: str) -> Optional[User]:
+        """Получить пользователя для сброса пароля (только верифицированных)"""
+        return db.query(User).filter(
+            User.email.ilike(email),
+            User.is_deleted == False,
+            User.is_verified == True
+        ).first()
+
+
+    @staticmethod
+    def soft_delete_user(db: Session, user_id: int) -> bool:
+        """Мягкое удаление пользователя"""
+        try:
+            user = UserCRUD.get_user_by_id(db, user_id)
+            if not user:
+                return False
+
+            user.is_deleted = True
+            db.commit()
+            logger.info(f"User {user_id} soft deleted")
+            return True
+        except Exception as e:
+            logger.error(f"Error soft deleting user {user_id}: {str(e)}")
+            db.rollback()
+            return False
+
+    @staticmethod
+    def get_user_stats(db: Session) -> dict:
+        """Статистика по пользователям"""
+        total = db.query(User).count()
+        verified = db.query(User).filter(User.is_verified == True).count()
+        active = db.query(User).filter(User.is_deleted == False).count()
+
+        return {
+            "total": total,
+            "verified": verified,
+            "active": active,
+            "unverified": total - verified,
+            "deleted": total - active
+        }
+
 
 user_crud = UserCRUD()

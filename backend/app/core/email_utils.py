@@ -6,7 +6,7 @@ from typing import Optional
 from contextlib import contextmanager
 
 from app.core.config import settings
-from app.core.security import create_verification_token
+from app.core.security import create_verification_token, create_password_reset_token
 
 logger = logging.getLogger(__name__)
 
@@ -262,6 +262,133 @@ class EmailService:
         """
 
         return self.send_email(email, subject, html_content)
+
+    # app/core/email_utils.py (добавьте этот метод)
+
+    def send_password_reset_email(self, email: str, user_id: int, username: str) -> bool:
+        """Отправить письмо для сброса пароля"""
+
+        token = create_password_reset_token(user_id)
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+        subject = "Сброс пароля в Family Circle"
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    line-height: 1.6; 
+                    color: #333; 
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f5f5f5;
+                }}
+                .container {{ 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background-color: white;
+                }}
+                .header {{ 
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    color: white; 
+                    padding: 40px 20px; 
+                    text-align: center; 
+                }}
+                .content {{ 
+                    padding: 40px 30px; 
+                }}
+                .button {{ 
+                    display: inline-block; 
+                    padding: 14px 32px; 
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    margin: 25px 0;
+                    font-weight: 600;
+                    font-size: 16px;
+                    border: none;
+                    cursor: pointer;
+                }}
+                .warning {{
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeeba;
+                    color: #856404;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                }}
+                .footer {{ 
+                    text-align: center; 
+                    margin-top: 40px; 
+                    padding-top: 20px;
+                    border-top: 1px solid #eaeaea;
+                    font-size: 12px; 
+                    color: #666; 
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 28px;">🔐 Сброс пароля</h1>
+                </div>
+                <div class="content">
+                    <p>Здравствуйте, <strong>{username}</strong>!</p>
+                    <p>Мы получили запрос на сброс пароля для вашего аккаунта в Family Circle.</p>
+
+                    <div style="text-align: center;">
+                        <a href="{reset_url}" class="button">Сбросить пароль</a>
+                    </div>
+
+                    <p>Или скопируйте ссылку:</p>
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; word-break: break-all;">
+                        {reset_url}
+                    </div>
+
+                    <div class="warning">
+                        ⚠️ Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо. 
+                        Ваш пароль останется без изменений.
+                    </div>
+
+                    <p style="color: #666; font-size: 14px;">
+                        ⏳ Ссылка действительна {settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS} час(ов).
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>© 2026 Family Circle. Все права защищены.</p>
+                    <p>Это автоматическое письмо, пожалуйста не отвечайте на него.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_content = f"""
+        Здравствуйте, {username}!
+
+        Мы получили запрос на сброс пароля для вашего аккаунта в Family Circle.
+
+        Для сброса пароля перейдите по ссылке:
+        {reset_url}
+
+        Если ссылка не работает, скопируйте её в браузер.
+
+        ⚠️ Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.
+
+        ⏳ Ссылка действительна {settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS} час(ов).
+
+        ---
+        © 2026 Family Circle
+        """
+
+        return self.send_email(email, subject, html_content, text_content)
+
 
     def _save_email_to_file(self, to_email: str, subject: str,
                             html_content: str, text_content: Optional[str] = None):
