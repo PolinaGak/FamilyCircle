@@ -17,3 +17,4 @@ __pycache__/
 # PostgreSQL данные
 data/postgres/
 data/postgres/**
+/test.db
