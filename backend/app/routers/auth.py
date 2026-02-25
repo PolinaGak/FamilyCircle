@@ -1,3 +1,4 @@
+import asyncio
 import random
 import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
@@ -153,7 +154,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 @router.post("/login")
 async def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db)):
     # Защита от timing attacks
-    time.sleep(0.5 + random.uniform(0, 0.3))
+    await asyncio.sleep(0.5 + random.uniform(0, 0.3))
 
     user = user_crud.authenticate_user(db, user_data.email, user_data.password)
 
@@ -235,7 +236,7 @@ async def password_reset_request(
     response_message = {"success": True, "message": SUCCESS_MESSAGES["password_reset_request"]}
 
     if not user or not user.is_verified:
-        time.sleep(1)  # Защита от перебора
+        await asyncio.sleep(1)  # Защита от перебора
         logger.info(f"Password reset requested for {'non-existent' if not user else 'unverified'} email")
         return response_message
 
