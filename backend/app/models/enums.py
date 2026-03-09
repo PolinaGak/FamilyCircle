@@ -13,7 +13,7 @@ class ThemeType(str, Enum):
     light = "light"
     dark = "dark"
 
-class InvintationStatus(str, Enum):
+class InvitationStatus(str, Enum):
     invited = "invited"
     accepted = "accepted"
     declined = "declined"

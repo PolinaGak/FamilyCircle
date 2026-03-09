@@ -6,21 +6,46 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
+
+    DEBUG: bool = False
+
     # Database settings
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
 
     # JWT settings
     SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+    VERIFY_TOKEN_EXPIRE_HOURS: int
+    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int
+    SESSION_TIMEOUT_MINUTES: int
+    MAX_FAILED_LOGIN_ATTEMPTS: int
+    ACCOUNT_LOCKOUT_MINUTES: int
 
     # Security settings
     CSRF_SECRET_KEY: str
+
+    # Email настройки
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USER: str
+    SMTP_PASSWORD: str
+    EMAIL_FROM: str
+    EMAIL_FROM_NAME: str
+    SMTP_USE_TLS: bool
+    SMTP_USE_SSL: bool
+
+    # Frontend URLs
+    FRONTEND_URL: str
+    VERIFY_EMAIL_URL: str
+
+    # Backend URLs
+    BACKEND_URL: str
 
     @property
     def DATABASE_URL(self) -> str:
