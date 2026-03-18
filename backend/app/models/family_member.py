@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from ..database import Base
 
 class FamilyMember(Base):
@@ -17,9 +18,10 @@ class FamilyMember(Base):
     phone = Column(String)
     workplace = Column(String)
     residence = Column(String)
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=False)
     created_by_user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     approved = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     family = relationship("Family", foreign_keys=[family_id])
     user = relationship("User", foreign_keys=[user_id])

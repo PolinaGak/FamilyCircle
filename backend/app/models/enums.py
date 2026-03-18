@@ -17,3 +17,7 @@ class InvitationStatus(str, Enum):
     invited = "invited"
     accepted = "accepted"
     declined = "declined"
+
+class InvitationType(str, Enum):
+    claim_member = "claim_member"
+    new_member = "new_member"
