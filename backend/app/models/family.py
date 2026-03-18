@@ -12,3 +12,4 @@ class Family(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     admin = relationship("User", foreign_keys=[admin_user_id])
+    members = relationship("FamilyMember", back_populates="family", cascade="all, delete-orphan")

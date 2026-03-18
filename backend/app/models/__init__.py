@@ -5,7 +5,7 @@ from .family_member import FamilyMember
 
 from .relationship import Relationship
 
-from .invitation_code import InvitationCode
+from .invitation import Invitation
 
 from .album import Album
 from .album_member import AlbumMember

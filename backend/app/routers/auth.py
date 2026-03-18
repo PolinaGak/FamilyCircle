@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app.core.config import settings
 from app.core.email_utils import email_service
 from app.schemas.auth import (
     UserCreate, UserLogin, UserResponse,
-    PasswordResetRequest, PasswordReset, PasswordChange, LogoutResponse
+    PasswordResetRequest, PasswordReset, PasswordChange, LogoutResponse, TokenResponse
 )
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
@@ -151,12 +153,14 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/login")
-async def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db)):
-    # Защита от timing attacks
+@router.post("/login", response_model=TokenResponse)
+async def login(
+        db: Session = Depends(get_db),
+        form_data: OAuth2PasswordRequestForm = Depends()
+):
     await asyncio.sleep(0.5 + random.uniform(0, 0.3))
 
-    user = user_crud.authenticate_user(db, user_data.email, user_data.password)
+    user = user_crud.authenticate_user(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(
@@ -173,7 +177,10 @@ async def login(user_data: UserLogin, response: Response, db: Session = Depends(
         )
 
     logger.info(f"User {user.id} logged in successfully")
-    return create_auth_response(user, response)
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer",  "refresh_token": refresh_token, "user": UserResponse.model_validate(user)  }
 
 
 @router.post("/logout", response_model=LogoutResponse)
