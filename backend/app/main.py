@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from app.routers import auth, family, invitation
+from app.routers import auth, family, invitation, chat, event, album, photo
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -26,6 +26,10 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(family.router)
 app.include_router(invitation.router)
+app.include_router(event.router)
+app.include_router(chat.router)
+app.include_router(photo.router)
+app.include_router(album.router)
 
 def custom_openapi():
     if app.openapi_schema:
