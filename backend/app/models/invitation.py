@@ -22,15 +22,10 @@ class Invitation(Base):
     family_id = Column(Integer, ForeignKey("family.id"), nullable=False)
     created_by_user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
 
-    # Тип приглашения:
-    # - 'new_member' - создать новую карточку для приглашенного
-    # - 'claim_member' - привязать существующую карточку (с member_id)
     invitation_type = Column(Enum(InvitationType), nullable=False, default='new_member')
 
-    # Если invitation_type = 'claim_member', то указываем ID карточки
     target_member_id = Column(Integer, ForeignKey("family_member.id"), nullable=True)
 
-    # Статус и срок действия
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True), nullable=True)
     used_by_user_id = Column(Integer, ForeignKey("user.id"), nullable=True)
@@ -38,7 +33,6 @@ class Invitation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
-    # Связи
     family = relationship("Family", foreign_keys=[family_id])
     created_by = relationship("User", foreign_keys=[created_by_user_id])
     used_by = relationship("User", foreign_keys=[used_by_user_id])

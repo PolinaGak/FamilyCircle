@@ -13,13 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class FamilyCRUD:
-    """CRUD операции для семей и членов семьи"""
-
-    # ========== FAMILY METHODS ==========
 
     @staticmethod
     def create_family(db: Session, family_data: FamilyCreate, admin_user_id: int) -> Family:
-        """Создать новую семью (пользователь становится администратором)"""
         try:
             family = Family(
                 name=family_data.name.strip(),
@@ -27,17 +23,16 @@ class FamilyCRUD:
             )
 
             db.add(family)
-            db.flush()  # Получаем ID без коммита
+            db.flush()
 
-            # Создаем запись администратора в family_member
             from datetime import datetime
 
             admin_member = FamilyMember(
                 family_id=family.id,
                 user_id=admin_user_id,
-                first_name="Администратор",  # Временное имя
-                last_name="Семьи",  # Временная фамилия
-                birth_date=datetime.now(),  # Сегодняшняя дата
+                first_name="Администратор",
+                last_name="Семьи",
+                birth_date=datetime.now(),
                 is_admin=True,
                 approved=True,
                 is_active=True,
@@ -58,12 +53,10 @@ class FamilyCRUD:
 
     @staticmethod
     def get_family_by_id(db: Session, family_id: int) -> Optional[Family]:
-        """Получить семью по ID"""
         return db.query(Family).filter(Family.id == family_id).first()
 
     @staticmethod
     def get_family_with_members(db: Session, family_id: int) -> Optional[Family]:
-        """Получить семью со всеми членами"""
         return db.query(Family) \
             .options(joinedload(Family.members)) \
             .filter(Family.id == family_id) \
@@ -71,7 +64,6 @@ class FamilyCRUD:
 
     @staticmethod
     def get_user_families(db: Session, user_id: int) -> List[Family]:
-        """Получить все семьи, где пользователь является членом"""
         return db.query(Family) \
             .join(FamilyMember, Family.id == FamilyMember.family_id) \
             .filter(FamilyMember.user_id == user_id) \
@@ -79,7 +71,6 @@ class FamilyCRUD:
 
     @staticmethod
     def update_family(db: Session, family_id: int, name: str) -> Optional[Family]:
-        """Обновить название семьи"""
         family = FamilyCRUD.get_family_by_id(db, family_id)
         if not family:
             return None
@@ -91,15 +82,12 @@ class FamilyCRUD:
 
     @staticmethod
     def delete_family(db: Session, family_id: int) -> bool:
-        """Удалить семью (только администратор)"""
         try:
             family = FamilyCRUD.get_family_by_id(db, family_id)
             if not family:
                 return False
 
-            # Сначала удаляем всех членов семьи
             db.query(FamilyMember).filter(FamilyMember.family_id == family_id).delete()
-            # Потом саму семью
             db.delete(family)
             db.commit()
             return True
@@ -108,8 +96,6 @@ class FamilyCRUD:
             db.rollback()
             return False
 
-    # ========== FAMILY MEMBER METHODS ==========
-
     @staticmethod
     def add_member(
             db: Session,
@@ -117,9 +103,7 @@ class FamilyCRUD:
             member_data: FamilyMemberCreate,
             created_by_user_id: int
     ) -> FamilyMember:
-        """Добавить члена в семью"""
         try:
-            # Проверяем, не существует ли уже такой член
             if member_data.user_id:
                 existing = db.query(FamilyMember).filter(
                     FamilyMember.family_id == family_id,
@@ -141,8 +125,8 @@ class FamilyCRUD:
                 residence=member_data.residence,
                 is_admin=member_data.is_admin,
                 created_by_user_id=created_by_user_id,
-                # Если добавляет администратор, сразу подтверждаем
-                approved=member_data.approved
+                approved=member_data.approved,
+                is_active=True
             )
 
             db.add(member)
@@ -159,12 +143,10 @@ class FamilyCRUD:
 
     @staticmethod
     def get_member_by_id(db: Session, member_id: int) -> Optional[FamilyMember]:
-        """Получить члена семьи по ID"""
         return db.query(FamilyMember).filter(FamilyMember.id == member_id).first()
 
     @staticmethod
     def get_family_members(db: Session, family_id: int) -> List[FamilyMember]:
-        """Получить всех членов семьи"""
         return db.query(FamilyMember) \
             .filter(FamilyMember.family_id == family_id) \
             .order_by(FamilyMember.last_name, FamilyMember.first_name) \
@@ -176,7 +158,6 @@ class FamilyCRUD:
             member_id: int,
             update_data: FamilyMemberUpdate
     ) -> Optional[FamilyMember]:
-        """Обновить данные члена семьи"""
         member = FamilyCRUD.get_member_by_id(db, member_id)
         if not member:
             return None
@@ -192,7 +173,6 @@ class FamilyCRUD:
 
     @staticmethod
     def approve_member(db: Session, member_id: int, approved: bool = True) -> Optional[FamilyMember]:
-        """Подтвердить члена семьи (администратором)"""
         member = FamilyCRUD.get_member_by_id(db, member_id)
         if not member:
             return None
@@ -204,14 +184,12 @@ class FamilyCRUD:
 
     @staticmethod
     def remove_member(db: Session, member_id: int) -> bool:
-        """Удалить члена из семьи"""
         try:
             member = FamilyCRUD.get_member_by_id(db, member_id)
             if not member:
                 return False
 
-            from app.models.invitation import \
-                Invitation
+            from app.models.invitation import Invitation
             db.query(Invitation).filter(Invitation.target_member_id == member_id).update(
                 {"target_member_id": None}, synchronize_session=False
             )
@@ -226,7 +204,6 @@ class FamilyCRUD:
 
     @staticmethod
     def is_family_admin(db: Session, user_id: int, family_id: int) -> bool:
-        """Проверить, является ли пользователь администратором семьи"""
         return db.query(FamilyMember).filter(
             FamilyMember.family_id == family_id,
             FamilyMember.user_id == user_id,
@@ -235,25 +212,13 @@ class FamilyCRUD:
 
     @staticmethod
     def is_family_member(db: Session, user_id: int, family_id: int) -> bool:
-        """Проверить, является ли пользователь членом семьи"""
         return db.query(FamilyMember).filter(
             FamilyMember.family_id == family_id,
             FamilyMember.user_id == user_id
         ).first() is not None
 
-    # В класс FamilyCRUD добавить:
-
     @staticmethod
     def leave_family(db: Session, user_id: int, family_id: int) -> FamilyMember:
-        """
-        Пользователь покидает семью: отвязывает свою учётную запись от карточки члена семьи.
-        Если пользователь был администратором, проверяет наличие других администраторов.
-
-        Возвращает обновлённый объект FamilyMember.
-
-        Raises:
-            ValueError: с описанием причины, если операция невозможна.
-        """
         member = db.query(FamilyMember).filter(
             FamilyMember.family_id == family_id,
             FamilyMember.user_id == user_id,
@@ -263,7 +228,6 @@ class FamilyCRUD:
         if not member:
             raise ValueError("Вы не являетесь активным членом этой семьи")
 
-        # Если пользователь - администратор, проверяем, есть ли другие администраторы
         if member.is_admin:
             admin_count = db.query(FamilyMember).filter(
                 FamilyMember.family_id == family_id,
@@ -275,9 +239,7 @@ class FamilyCRUD:
                 raise ValueError(
                     "Вы последний администратор. Невозможно покинуть семью. Назначьте другого администратора или удалите семью.")
 
-        # Отвязываем пользователя от карточки
         member.user_id = None
-        # Снимаем права администратора, если были
         if member.is_admin:
             member.is_admin = False
 
@@ -289,15 +251,6 @@ class FamilyCRUD:
 
     @staticmethod
     def transfer_admin_rights(db: Session, current_user_id: int, family_id: int, target_member_id: int) -> FamilyMember:
-        """
-        Передать права администратора другому члену семьи.
-
-        Возвращает обновлённый объект целевого члена семьи.
-
-        Raises:
-            ValueError: с описанием причины, если операция невозможна.
-        """
-        # Проверяем, что текущий пользователь - администратор
         current_member = db.query(FamilyMember).filter(
             FamilyMember.family_id == family_id,
             FamilyMember.user_id == current_user_id,
@@ -307,7 +260,6 @@ class FamilyCRUD:
         if not current_member or not current_member.is_admin:
             raise ValueError("Только администратор может передавать права")
 
-        # Проверяем, что целевой член существует и активен
         target_member = db.query(FamilyMember).filter(
             FamilyMember.id == target_member_id,
             FamilyMember.family_id == family_id,
@@ -320,7 +272,6 @@ class FamilyCRUD:
         if target_member.is_admin:
             raise ValueError("Целевой член уже является администратором")
 
-        # Передаём права
         current_member.is_admin = False
         target_member.is_approved = True
         target_member.is_admin = True
@@ -332,5 +283,5 @@ class FamilyCRUD:
             f"Права администратора переданы от пользователя {current_user_id} к члену {target_member_id} в семье {family_id}")
         return target_member
 
-# Создаем экземпляр для импорта
+
 family_crud = FamilyCRUD()

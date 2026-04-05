@@ -21,3 +21,8 @@ class InvitationStatus(str, Enum):
 class InvitationType(str, Enum):
     claim_member = "claim_member"
     new_member = "new_member"
+
+class AlbumVisibility(str, Enum):
+    private = "private"
+    event = "event"
+    family = "family"

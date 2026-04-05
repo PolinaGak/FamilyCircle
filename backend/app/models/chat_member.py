@@ -14,6 +14,8 @@ class ChatMember(Base):
     is_admin = Column(Boolean, default=False)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(Enum(InvitationStatus), default=InvitationStatus.invited)
+    added_by_user_id = Column(Integer, ForeignKey("user.id"), nullable=True)
 
-    chat = relationship("Chat")
-    user = relationship("User")
+    chat = relationship("Chat", back_populates="members")
+    user = relationship("User", foreign_keys=[user_id], back_populates="chat_memberships")
+    added_by = relationship("User", foreign_keys=[added_by_user_id])

@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_current_active_user
-from app.crud import family_crud, user_crud
+from app.crud import family_crud
 from app.schemas.family import (
     FamilyCreate, FamilyResponse, FamilyDetailResponse
 )
-from app.schemas.family_member import   (
+from app.schemas.family_member import (
     FamilyMemberCreate, FamilyMemberResponse,
     FamilyMemberUpdate, FamilyMemberApprove
 )
@@ -22,18 +22,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/family", tags=["family"])
 
 
-# ========== ЭНДПОИНТЫ ДЛЯ СЕМЬИ ==========
-
 @router.post("/create", response_model=FamilyResponse)
 async def create_family(
         family_data: FamilyCreate,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Создать новую семью.
-    Создатель становится администратором семьи.
-    """
     try:
         family = family_crud.create_family(db, family_data, current_user.id)
         logger.info(f"Семья '{family.name}' создана пользователем {current_user.id}")
@@ -51,9 +45,6 @@ async def get_my_families(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Получить все семьи, где пользователь является членом
-    """
     families = family_crud.get_user_families(db, current_user.id)
     return families
 
@@ -64,10 +55,6 @@ async def get_family_detail(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Получить детальную информацию о семье со всеми членами
-    """
-    # Проверяем, что пользователь является членом семьи
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -91,10 +78,6 @@ async def update_family(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Обновить название семьи (только для администратора)
-    """
-    # Проверяем, что пользователь - администратор
     if not family_crud.is_family_admin(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -117,10 +100,6 @@ async def delete_family(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Удалить семью (только для администратора)
-    """
-    # Проверяем, что пользователь - администратор
     if not family_crud.is_family_admin(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -137,8 +116,6 @@ async def delete_family(
     return {"message": "Семья успешно удалена"}
 
 
-# ========== ЭНДПОИНТЫ ДЛЯ ЧЛЕНОВ СЕМЬИ ==========
-
 @router.post("/{family_id}/member", response_model=FamilyMemberResponse)
 async def add_family_member(
         family_id: int,
@@ -146,11 +123,6 @@ async def add_family_member(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Добавить члена в семью.
-    Только администратор или подтвержденные члены могут добавлять.
-    """
-    # Проверяем доступ (админ или подтвержденный член)
     is_admin = family_crud.is_family_admin(db, current_user.id, family_id)
     is_member = family_crud.is_family_member(db, current_user.id, family_id)
 
@@ -182,9 +154,6 @@ async def get_family_members(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Получить всех членов семьи
-    """
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -202,12 +171,6 @@ async def update_family_member(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Обновить данные члена семьи.
-    Может обновлять:
-    - сам член семьи
-    - администратор семьи
-    """
     member = family_crud.get_member_by_id(db, member_id)
     if not member:
         raise HTTPException(
@@ -215,7 +178,6 @@ async def update_family_member(
             detail="Член семьи не найден"
         )
 
-    # Проверяем права
     is_admin = family_crud.is_family_admin(db, current_user.id, member.family_id)
     is_self = member.user_id == current_user.id
 
@@ -236,9 +198,6 @@ async def approve_family_member(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Подтвердить члена семьи (только администратор)
-    """
     member = family_crud.get_member_by_id(db, member_id)
     if not member:
         raise HTTPException(
@@ -262,12 +221,6 @@ async def remove_family_member(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Удалить члена из семьи.
-    Может удалять:
-    - сам член семьи (себя)
-    - администратор семьи
-    """
     member = family_crud.get_member_by_id(db, member_id)
     if not member:
         raise HTTPException(
@@ -275,7 +228,6 @@ async def remove_family_member(
             detail="Член семьи не найден"
         )
 
-    # Проверяем права
     is_admin = family_crud.is_family_admin(db, current_user.id, member.family_id)
     is_self = member.user_id == current_user.id
 
@@ -285,7 +237,6 @@ async def remove_family_member(
             detail="Нет прав на удаление"
         )
 
-    # Админ не может удалить сам себя (должен передать права)
     if is_self and member.is_admin:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -314,10 +265,6 @@ async def transfer_admin_rights(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Передать права администратора другому члену семьи.
-    Только текущий администратор может это сделать.
-    """
     try:
         family_crud.transfer_admin_rights(db, current_user.id, family_id, target_member_id)
         return {"success": True, "message": "Права администратора переданы"}
@@ -331,10 +278,6 @@ async def leave_family(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Покинуть семью: отвязать свою учётную запись от карточки члена семьи.
-    Если вы администратор, убедитесь, что не последний.
-    """
     try:
         family_crud.leave_family(db, current_user.id, family_id)
         return {"success": True, "message": "Вы успешно покинули семью"}

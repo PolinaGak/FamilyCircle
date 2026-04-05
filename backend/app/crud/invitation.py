@@ -23,7 +23,6 @@ class InvitationCRUD:
     ) -> Invitation:
         """Создать приглашение для нового члена семьи"""
         try:
-            # Проверяем, что создатель имеет права
             from app.crud.family import family_crud
 
             expires_at = datetime.now(timezone.utc) + timedelta(days=invitation_data.expires_in_days)
@@ -56,7 +55,6 @@ class InvitationCRUD:
     ) -> Invitation:
         """Создать приглашение для привязки существующей карточки"""
         try:
-            # Проверяем, что карточка существует и не привязана к пользователю
             from app.crud.family import family_crud as fc
             member = fc.get_member_by_id(db, invitation_data.member_id)
             if not member:
@@ -119,32 +117,27 @@ class InvitationCRUD:
         if not invitation:
             return False, "Приглашение не найдено или неактивно", None
 
-        # Проверяем срок действия
         if datetime.now(timezone.utc) > invitation.expires_at:
             invitation.is_active = False
             db.commit()
             return False, "Срок действия приглашения истек", None
 
-        # Проверяем, не использовано ли уже
         if invitation.used_at:
             return False, "Приглашение уже использовано", None
 
         from app.crud.family import family_crud as fc
 
-        # Обработка в зависимости от типа
         if invitation.invitation_type == 'new_member':
-            # Создаем новую карточку для пользователя
             from app.schemas.family_member import FamilyMemberCreate
 
 
             member_data = FamilyMemberCreate(
                 first_name="Новый",
                 last_name="Член семьи",
-                birth_date=datetime.now(),  # Временная дата, попросим заполнить позже
+                birth_date=datetime.now(),
                 is_admin=False,
                 is_active=True,
                 user_id=claiming_user_id
-                # Остальные поля необязательные
             )
 
             try:
@@ -155,7 +148,6 @@ class InvitationCRUD:
                     claiming_user_id
                 )
 
-                # Отмечаем приглашение как использованное
                 invitation.used_at = datetime.now(timezone.utc)
                 invitation.used_by_user_id = claiming_user_id
                 invitation.is_active = False
@@ -170,7 +162,6 @@ class InvitationCRUD:
                 return False, f"Ошибка при создании карточки: {str(e)}", None
 
         elif invitation.invitation_type == 'claim_member':
-            # Привязываем существующую карточку
             member = fc.get_member_by_id(db, invitation.target_member_id)
             if not member:
                 return False, "Карточка не найдена", None
@@ -178,12 +169,10 @@ class InvitationCRUD:
             if member.user_id is not None:
                 return False, "Эта карточка уже привязана к другому пользователю", None
 
-            # Привязываем пользователя
             member.user_id = claiming_user_id
             member.is_active = True
 
 
-            # Отмечаем приглашение как использованное
             invitation.used_at = datetime.now(timezone.utc)
             invitation.used_by_user_id = claiming_user_id
             invitation.is_active = False
@@ -202,7 +191,6 @@ class InvitationCRUD:
         if not invitation:
             return False
 
-        # Проверяем права (только создатель или админ семьи)
         from app.crud.family import family_crud
         is_admin = family_crud.is_family_admin(db, user_id, invitation.family_id)
 
@@ -214,5 +202,4 @@ class InvitationCRUD:
         return True
 
 
-# Создаем экземпляр
 invitation_crud = InvitationCRUD()

@@ -27,7 +27,6 @@ app.include_router(auth.router)
 app.include_router(family.router)
 app.include_router(invitation.router)
 
-
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema

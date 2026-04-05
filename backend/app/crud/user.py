@@ -1,5 +1,4 @@
 from typing import Optional
-from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -14,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class UserCRUD:
-    """CRUD операции для пользователей"""
-
 
     @staticmethod
     def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
@@ -27,7 +24,6 @@ class UserCRUD:
 
     @staticmethod
     def get_active_user_by_email(db: Session, email: str) -> Optional[User]:
-        """Получить активного (не удаленного) пользователя по email"""
         return db.query(User).filter(
             User.email.ilike(email),
             User.is_deleted == False
@@ -35,9 +31,7 @@ class UserCRUD:
 
     @staticmethod
     def user_exists(db: Session, email: str) -> bool:
-        """Проверить существование пользователя по email"""
         return db.query(User).filter(User.email.ilike(email)).first() is not None
-
 
     @staticmethod
     def register_user(db: Session, new_user: UserCreate) -> User:
@@ -90,9 +84,8 @@ class UserCRUD:
             db.rollback()
             return False
 
-
     @staticmethod
-    def authenticate_user(  # Убрал async
+    def authenticate_user(
             db: Session,
             email: str,
             password: str
@@ -110,7 +103,7 @@ class UserCRUD:
 
             if not user.is_verified:
                 logger.info(f"Login blocked: user {user.id} email not verified")
-                return None  # ВАЖНО: возвращаем None, а не пользователя!
+                return None
 
             logger.info(f"Successful login: {email}")
             return user
@@ -118,7 +111,6 @@ class UserCRUD:
         except Exception as e:
             logger.error(f"Authentication error for {email}: {str(e)}")
             return None
-
 
     @staticmethod
     def update_password(db: Session, user_id: int, new_password: str) -> bool:
@@ -128,7 +120,6 @@ class UserCRUD:
                 logger.warning(f"User {user_id} not found for password update")
                 return False
 
-            # Проверяем, что новый пароль отличается от старого
             if verify_password(new_password, user.password_hash):
                 logger.warning(f"New password same as old for user {user_id}")
                 return False
@@ -145,17 +136,14 @@ class UserCRUD:
 
     @staticmethod
     def get_user_by_email_for_reset(db: Session, email: str) -> Optional[User]:
-        """Получить пользователя для сброса пароля (только верифицированных)"""
         return db.query(User).filter(
             User.email.ilike(email),
             User.is_deleted == False,
             User.is_verified == True
         ).first()
 
-
     @staticmethod
     def soft_delete_user(db: Session, user_id: int) -> bool:
-        """Мягкое удаление пользователя"""
         try:
             user = UserCRUD.get_user_by_id(db, user_id)
             if not user:
@@ -172,7 +160,6 @@ class UserCRUD:
 
     @staticmethod
     def get_user_stats(db: Session) -> dict:
-        """Статистика по пользователям"""
         total = db.query(User).count()
         verified = db.query(User).filter(User.is_verified == True).count()
         active = db.query(User).filter(User.is_deleted == False).count()

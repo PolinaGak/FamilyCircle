@@ -1,17 +1,15 @@
 import asyncio
 import random
-import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
-from starlette.responses import JSONResponse
-
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.config import settings
 from app.core.email_utils import email_service
+from app.models import User
 from app.schemas.auth import (
-    UserCreate, UserLogin, UserResponse,
-    PasswordResetRequest, PasswordReset, PasswordChange, LogoutResponse, TokenResponse
+    UserCreate, UserResponse, PasswordResetRequest,
+    PasswordReset, PasswordChange, LogoutResponse
 )
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
@@ -19,6 +17,7 @@ from app.core.security import (
 )
 from app.database import get_db
 from app.crud import user_crud
+from app.dependencies.auth import get_current_active_user
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,34 +46,7 @@ SUCCESS_MESSAGES = {
 }
 
 
-
-def get_current_user_from_token(request: Request, db: Session):
-    """Извлечение текущего пользователя из токена авторизации"""
-    auth_header = request.headers.get("authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None
-
-    token = auth_header.replace("Bearer ", "")
-    payload = decode_token(token)
-    if not payload:
-        return None
-
-    user_id = payload.get("sub")
-    if not user_id:
-        return None
-
-    return user_crud.get_user_by_id(db, int(user_id))
-
-
-def verify_user_exists(user, error_detail: str = ERROR_MESSAGES["user_not_found"]):
-    """Проверка существования пользователя"""
-    if not user or user.is_deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail)
-    return user
-
-
 def create_auth_response(user, response: Response):
-    """Создание стандартного ответа с токенами"""
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
 
@@ -84,7 +56,8 @@ def create_auth_response(user, response: Response):
         httponly=True,
         secure=not settings.DEBUG,
         samesite="lax",
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/auth/refresh"
     )
 
     return {
@@ -92,7 +65,6 @@ def create_auth_response(user, response: Response):
         "token_type": "bearer",
         "user": UserResponse.model_validate(user)
     }
-
 
 
 @router.post("/register")
@@ -153,8 +125,9 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 async def login(
+        response: Response,
         db: Session = Depends(get_db),
         form_data: OAuth2PasswordRequestForm = Depends()
 ):
@@ -178,16 +151,14 @@ async def login(
 
     logger.info(f"User {user.id} logged in successfully")
 
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer",  "refresh_token": refresh_token, "user": UserResponse.model_validate(user)  }
+    return create_auth_response(user, response)
 
 
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(response: Response):
     response.delete_cookie(
         key="refresh_token",
-        path="/",
+        path="/auth/refresh",
         httponly=True,
         secure=not settings.DEBUG,
         samesite="lax"
@@ -221,7 +192,11 @@ async def refresh_token(request: Request, db: Session = Depends(get_db)):
         )
 
     user = user_crud.get_user_by_id(db, int(user_id))
-    verify_user_exists(user)
+    if not user or user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES["user_not_found"]
+        )
 
     new_access_token = create_access_token({"sub": str(user.id)})
 
@@ -232,6 +207,13 @@ async def refresh_token(request: Request, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+        current_user: User = Depends(get_current_active_user)
+):
+    return current_user
+
+
 @router.post("/password-reset-request")
 async def password_reset_request(
         request_data: PasswordResetRequest,
@@ -239,11 +221,10 @@ async def password_reset_request(
 ):
     user = user_crud.get_user_by_email_for_reset(db, request_data.email)
 
-    # Всегда одинаковый ответ для безопасности
     response_message = {"success": True, "message": SUCCESS_MESSAGES["password_reset_request"]}
 
     if not user or not user.is_verified:
-        await asyncio.sleep(1)  # Защита от перебора
+        await asyncio.sleep(1)
         logger.info(f"Password reset requested for {'non-existent' if not user else 'unverified'} email")
         return response_message
 
@@ -268,7 +249,11 @@ async def password_reset(reset_data: PasswordReset, db: Session = Depends(get_db
         )
 
     user = user_crud.get_user_by_id(db, user_id)
-    verify_user_exists(user)
+    if not user or user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES["user_not_found"]
+        )
 
     if not user_crud.update_password(db, user_id, reset_data.new_password):
         raise HTTPException(
@@ -276,7 +261,6 @@ async def password_reset(reset_data: PasswordReset, db: Session = Depends(get_db
             detail="Ошибка при обновлении пароля"
         )
 
-    # Не блокируем ответ при ошибке отправки письма
     try:
         email_service.send_email(
             user.email,
@@ -289,27 +273,19 @@ async def password_reset(reset_data: PasswordReset, db: Session = Depends(get_db
     logger.info(f"Password reset successful for user {user.id}")
     return {"success": True, "message": SUCCESS_MESSAGES["password_reset"]}
 
-
 @router.post("/change-password")
 async def change_password(
         password_data: PasswordChange,
-        request: Request,
+        current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db)
 ):
-    user = get_current_user_from_token(request, db)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES["unauthorized"]
-        )
-
-    if not verify_password(password_data.current_password, user.password_hash):
+    if not verify_password(password_data.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES["wrong_password"]
         )
 
-    if not user_crud.update_password(db, user.id, password_data.new_password):
+    if not user_crud.update_password(db, current_user.id, password_data.new_password):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ошибка при обновлении пароля"
@@ -317,12 +293,12 @@ async def change_password(
 
     try:
         email_service.send_email(
-            user.email,
+            current_user.email,
             "Пароль изменен",
-            f"<p>Здравствуйте, {user.name}!</p><p>Ваш пароль в Family Circle был успешно изменен.</p>"
+            f"<p>Здравствуйте, {current_user.name}!</p><p>Ваш пароль в Family Circle был успешно изменен.</p>"
         )
     except Exception:
         pass
 
-    logger.info(f"Password changed for user {user.id}")
+    logger.info(f"Password changed for user {current_user.id}")
     return {"success": True, "message": SUCCESS_MESSAGES["password_changed"]}
