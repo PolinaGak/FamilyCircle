@@ -82,11 +82,9 @@ async def claim_invitation(
     if not success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
-    # Получаем информацию о семье
     family = family_crud.get_family_by_id(db, member.family_id)
     member.id = current_user.id
 
-    # Проверяем, заполнена ли карточка (есть ли обязательные поля)
     requires_completion = not all([
         member.first_name and member.first_name != "Новый",
         member.last_name and member.last_name != "Член",

@@ -13,3 +13,4 @@ class Family(Base):
 
     admin = relationship("User", foreign_keys=[admin_user_id])
     members = relationship("FamilyMember", back_populates="family", cascade="all, delete-orphan")
+    albums = relationship("Album", back_populates="family")

@@ -6,8 +6,6 @@ from app.models.enums import ThemeType
 
 
 class BasePasswordMixin:
-    """Mixin с общей валидацией пароля"""
-
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         if len(v) < 8:
@@ -40,14 +38,15 @@ class BaseNewPasswordField(BaseModel, BasePasswordMixin):
 
 
 
-class UserCreate(BasePasswordField):
-    email: EmailStr = Field(..., description="Электронная почта пользователя")
-    name: str = Field(
-        ...,
-        min_length=2,
-        max_length=50,
-        description="Имя пользователя"
-    )
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    name: str = Field(..., min_length=2, max_length=50)
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return BasePasswordMixin.validate_password_strength(v)
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -99,30 +98,47 @@ class UserResponse(BaseModel):
         }
     )
 
+class LoginResponse(BaseModel):
+    """Ответ при логине (без refresh token в JSON!)"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    expires_in: int = 3600
+    user: UserResponse
+
+class TokenRefreshResponse(BaseModel):
+    """Ответ при обновлении токена"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 
-class PasswordReset(BaseNewPasswordField):
+class PasswordReset(BaseModel):
     token: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return BasePasswordMixin.validate_password_strength(v)
 
 
-class PasswordChange(BaseModel, BasePasswordMixin):
+class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8)
 
     @field_validator('new_password')
     @classmethod
-    def validate_new_password(cls, v: str) -> str:
-        return cls.validate_password_strength(v)
+    def validate_password(cls, v: str) -> str:
+        return BasePasswordMixin.validate_password_strength(v)
 
 
 class LogoutResponse(BaseModel):

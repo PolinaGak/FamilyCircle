@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from app.routers import auth, family, invitation
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Family Circle API",
@@ -13,10 +14,18 @@ app = FastAPI(
         "displayRequestDuration": True,
     }
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth.router)
 app.include_router(family.router)
 app.include_router(invitation.router)
-
 
 def custom_openapi():
     if app.openapi_schema:
