@@ -18,3 +18,5 @@ __pycache__/
 data/postgres/
 data/postgres/**
 /test.db
+/ui.py
+/1.py
