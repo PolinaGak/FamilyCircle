@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from datetime import datetime, timedelta, timezone
 
+from app.models import RelationshipType, Gender
 from app.models.invitation import Invitation, generate_invite_code
 from app.models.family import Family
 from app.models.family_member import FamilyMember
@@ -130,14 +131,14 @@ class InvitationCRUD:
         if invitation.invitation_type == 'new_member':
             from app.schemas.family_member import FamilyMemberCreate
 
-
             member_data = FamilyMemberCreate(
                 first_name="Новый",
                 last_name="Член семьи",
                 birth_date=datetime.now(),
+                gender=Gender.male,
                 is_admin=False,
                 is_active=True,
-                user_id=claiming_user_id
+                user_id=claiming_user_id,
             )
 
             try:

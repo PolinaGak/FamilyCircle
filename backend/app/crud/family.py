@@ -2,6 +2,9 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 
+from app.crud.tree import tree_crud
+from app.models import RelationshipType
+from app.models import Relationship
 from app.models.user import User
 from app.models.family import Family
 from app.models.family_member import FamilyMember
@@ -104,13 +107,18 @@ class FamilyCRUD:
             created_by_user_id: int
     ) -> FamilyMember:
         try:
-            if member_data.user_id:
-                existing = db.query(FamilyMember).filter(
-                    FamilyMember.family_id == family_id,
-                    FamilyMember.user_id == member_data.user_id
+            # Проверяем связанного члена, если указан
+            related_member = None
+            if member_data.related_member_id:
+                from app.models.relationship import Relationship
+
+                related_member = db.query(FamilyMember).filter(
+                    FamilyMember.id == member_data.related_member_id,
+                    FamilyMember.family_id == family_id
                 ).first()
-                if existing:
-                    raise ValueError(f"Пользователь уже является членом этой семьи")
+
+                if not related_member:
+                    raise ValueError("Указанный связанный член семьи не найден или принадлежит другой семье")
 
             member = FamilyMember(
                 family_id=family_id,
@@ -118,6 +126,7 @@ class FamilyCRUD:
                 first_name=member_data.first_name.strip(),
                 last_name=member_data.last_name.strip(),
                 patronymic=member_data.patronymic.strip() if member_data.patronymic else None,
+                gender=member_data.gender,
                 birth_date=member_data.birth_date,
                 death_date=member_data.death_date,
                 phone=member_data.phone,
@@ -126,14 +135,55 @@ class FamilyCRUD:
                 is_admin=member_data.is_admin,
                 created_by_user_id=created_by_user_id,
                 approved=member_data.approved,
-                is_active=True
+                is_active=False
             )
 
             db.add(member)
+            db.flush()  # Получаем ID до коммита
+
+            # Создаем связь, если указана
+            if member_data.related_member_id and member_data.relationship_type:
+                from app.models.relationship import Relationship
+
+                # Прямая связь (например: related - отец, новый - сын)
+                rel = Relationship(
+                    from_member_id=member_data.related_member_id,
+                    to_member_id=member.id,
+                    relationship_type=member_data.relationship_type
+                )
+                db.add(rel)
+
+                # Определяем обратную связь с учетом полов
+                # Логика: смотрим кто является "целью" прямой связи, чтобы определить тип обратной
+
+                if member_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
+                    # related является родителем для member
+                    # Обратная связь зависит от пола родителя (related)
+                    reverse_type = tree_crud._get_reverse_relationship(
+                        member_data.relationship_type,
+                        related_member.gender
+                    )
+                else:
+                    # related является father/mother/spouse для member
+                    # Обратная связь зависит от пола member (ребенка/партнера)
+                    reverse_type = tree_crud._get_reverse_relationship(
+                        member_data.relationship_type,
+                        member.gender
+                    )
+
+                if reverse_type:
+                    reverse = Relationship(
+                        from_member_id=member.id,
+                        to_member_id=member_data.related_member_id,
+                        relationship_type=reverse_type
+                    )
+                    db.add(reverse)
+
             db.commit()
             db.refresh(member)
 
-            logger.info(f"Член семьи {member.id} добавлен в семью {family_id}")
+            logger.info(f"Член семьи {member.id} добавлен в семью {family_id}" +
+                        (f" со связью к {member_data.related_member_id}" if member_data.related_member_id else ""))
             return member
 
         except Exception as e:
@@ -158,13 +208,62 @@ class FamilyCRUD:
             member_id: int,
             update_data: FamilyMemberUpdate
     ) -> Optional[FamilyMember]:
+        from app.models.relationship import Relationship  # Импорт наверх метода
+        from app.crud.tree import tree_crud
+
         member = FamilyCRUD.get_member_by_id(db, member_id)
         if not member:
             return None
 
         update_dict = update_data.model_dump(exclude_unset=True)
+
+        # Обрабатываем создание новых связей при обновлении
+        if (update_data.related_member_id and update_data.relationship_type):
+            # Проверяем, что такой связи еще нет
+            existing = db.query(Relationship).filter(
+                Relationship.from_member_id == update_data.related_member_id,
+                Relationship.to_member_id == member_id
+            ).first()
+
+            if not existing:
+                related = db.get(FamilyMember, update_data.related_member_id)
+                if related and related.family_id == member.family_id:
+                    # Прямая связь
+                    rel = Relationship(
+                        from_member_id=update_data.related_member_id,
+                        to_member_id=member_id,
+                        relationship_type=update_data.relationship_type
+                    )
+                    db.add(rel)
+
+                    # Обратная связь с учетом пола
+                    if update_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
+                        # related является родителем, обратная зависит от пола родителя
+                        reverse_type = tree_crud._get_reverse_relationship(
+                            update_data.relationship_type, related.gender
+                        )
+                    elif update_data.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
+                        # Для брат/сестра обратная зависит от пола related (к которому привязываемся)
+                        reverse_type = tree_crud._get_reverse_relationship(
+                            update_data.relationship_type, related.gender
+                        )
+                    else:
+                        # father/mother/spouse/partner - обратная зависит от пола member
+                        reverse_type = tree_crud._get_reverse_relationship(
+                            update_data.relationship_type, member.gender
+                        )
+
+                    if reverse_type:
+                        reverse = Relationship(
+                            from_member_id=member_id,
+                            to_member_id=update_data.related_member_id,
+                            relationship_type=reverse_type
+                        )
+                        db.add(reverse)
+
+        # Обновляем остальные поля
         for key, value in update_dict.items():
-            if value is not None:
+            if key not in ['related_member_id', 'relationship_type'] and value is not None:
                 setattr(member, key, value)
 
         db.commit()

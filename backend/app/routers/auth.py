@@ -3,6 +3,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
+from starlette.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.email_utils import email_service
