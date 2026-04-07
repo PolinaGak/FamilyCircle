@@ -1,6 +1,5 @@
-// src/pages/auth/ForgotPasswordPage.tsx
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom'; 
 import './Auth.css';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -11,7 +10,6 @@ const ForgotPasswordPage: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const { resetPassword } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,11 +20,7 @@ const ForgotPasswordPage: React.FC = () => {
     try {
       await resetPassword(email);
       setIsSuccess(true);
-      
-      // Автоматический редирект через 10 секунд
-      setTimeout(() => {
-        navigate('/login');
-      }, 10000);
+    
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка восстановления пароля');
@@ -63,9 +57,9 @@ const ForgotPasswordPage: React.FC = () => {
 
           {isSuccess && (
             <div className="auth-success">
-              <p>Инструкции по восстановлению пароля отправлены на {email}</p>
-              <p style={{ fontSize: '14px', opacity: 0.8 }}>
-                Вы будете перенаправлены на страницу входа через 10 секунд...
+              <p>Инструкции по восстановлению пароля отправлены на <strong>{email}</strong></p>
+              <p style={{ fontSize: '14px', marginTop: '10px' }}>
+                Перейдите по ссылке в письме, чтобы создать новый пароль.
               </p>
             </div>
           )}

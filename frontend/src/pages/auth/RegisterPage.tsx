@@ -40,7 +40,8 @@ const RegisterPage: React.FC = () => {
     // 3. Все проверки пройдены - регистрируем
     try {
       await register(name, email, password);
-      navigate('/dashboard');
+      localStorage.setItem('pendingEmail', email);
+      navigate('/verify-pending');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
       console.error('Ошибка регистрации:', err);

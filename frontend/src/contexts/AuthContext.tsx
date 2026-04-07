@@ -36,46 +36,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // При загрузке проверяем сохраненного пользователя
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        const storedUser = localStorage.getItem('user');
-        const storedToken = localStorage.getItem('token');
-        
-        if (storedUser && storedToken) {
-          setUser(JSON.parse(storedUser));
+  // При загрузке приложения проверяем, есть ли сохраненный пользователь
+useEffect(() => {
+  const checkAuth = async () => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (storedUser && token) {
+        // Пробуем получить актуальные данные с сервера
+        try {
+          const userResponse = await authAPI.getMe();
+          setUser(userResponse.data);
+          // Обновляем localStorage актуальными данными
+          localStorage.setItem('user', JSON.stringify(userResponse.data));
+        } catch {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
         }
-      } catch (error) {
-        console.error('Ошибка при проверке аутентификации:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Ошибка при проверке аутентификации:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    checkAuth();
-  }, []);
+  checkAuth();
+}, []);
 
   // Функция входа 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Отправляем запрос к бэкенду
       const response = await authAPI.login(email, password);
+      const { access_token, user } = response.data;  
       
-      // Извлекаем данные из ответа
-      const { access_token, user: apiUser } = response.data;
-      
-      // Сохраняем токен в localStorage
       localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(apiUser));
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
       
-      // Обновляем состояние
-      setUser(apiUser);
-      
-      console.log('Успешный вход:', apiUser);
+      console.log('Успешный вход:', user);
     } catch (error: any) {
       console.error('Ошибка входа:', error);
+      localStorage.removeItem('token');
+      
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
       }
@@ -84,29 +90,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
-
   // Функция регистрации
-  const register = async (name: string, email: string, password: string): Promise<void> => {
+    const register = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Отправляем запрос к бэкенду
       const response = await authAPI.register(name, email, password);
+      console.log('Регистрация успешна, требуется подтверждение email');
       
-      // Извлекаем данные из ответа
-      const { access_token, user: apiUser } = response.data;
-      
-      // Сохраняем токен и пользователя
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(apiUser));
-      
-      // Обновляем состояние
-      setUser(apiUser);
-      
-      console.log('Успешная регистрация:', apiUser);
     } catch (error: any) {
       console.error('Ошибка регистрации:', error);
-      
-      // Обрабатываем ошибку от бэкенда
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
       }
@@ -115,7 +107,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
-
   // Функция восстановления пароля 
   const resetPassword = async (email: string): Promise<void> => {
     setIsLoading(true);

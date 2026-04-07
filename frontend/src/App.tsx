@@ -7,7 +7,10 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import LandingPage from './pages/landing/LandingPage';
-import ProtectedRoute from './components/ProtectedRoute'; // Импортируем
+import ProtectedRoute from './components/ProtectedRoute'; 
+import VerifyPendingPage from './pages/auth/VerifyPendingPage';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import './App.css';
 
 function App() {
@@ -36,6 +39,10 @@ function App() {
 
         {/* Резервный маршрут */}
         <Route path="*" element={<div>Страница не найдена</div>} />
+
+        <Route path="/verify-pending" element={<VerifyPendingPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Routes>
     </BrowserRouter>
   );

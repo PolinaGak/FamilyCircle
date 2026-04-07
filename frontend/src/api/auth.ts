@@ -9,7 +9,9 @@ export interface User {
 export interface LoginResponse {
   access_token: string;
   token_type: string;
-  user?: User;  
+  refresh_token?: string;
+  expires_in?: number;
+  user: User;
 }
 
 export const authAPI = {
@@ -18,7 +20,6 @@ export const authAPI = {
       new URLSearchParams({
         username: email,
         password: password,
-        grant_type: 'password',
       }).toString(),
       {
         headers: {
@@ -27,11 +28,12 @@ export const authAPI = {
       }
     ),
   
-  
   register: (name: string, email: string, password: string) =>
     apiClient.post<LoginResponse>('/auth/register', { name, email, password }),
   
-
   resetPassword: (email: string) =>
-    apiClient.post('/auth/reset-password', { email }),
+    apiClient.post('/auth/password-reset-request', { email }),
+
+  getMe: () =>
+    apiClient.get<User>('/auth/me'),
 };
