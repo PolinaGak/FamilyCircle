@@ -7,11 +7,17 @@ class RelationshipType(str, Enum):
     father = "father"
     spouse = "spouse"
     partner = "partner"
+    brother = "brother"
+    sister = "sister"
 
 
 class ThemeType(str, Enum):
     light = "light"
     dark = "dark"
+
+class Gender(str, Enum):
+    male = "male"
+    female = "female"
 
 class InvitationStatus(str, Enum):
     invited = "invited"

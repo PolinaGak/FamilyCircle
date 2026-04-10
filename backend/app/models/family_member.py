@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
+from .enums import Gender
 
 class FamilyMember(Base):
     __tablename__ = "family_member"
@@ -13,6 +14,7 @@ class FamilyMember(Base):
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     patronymic = Column(String)
+    gender = Column(Enum(Gender),default=Gender.female, nullable=False)
     birth_date = Column(DateTime(timezone=True), nullable=False)
     death_date = Column(DateTime(timezone=True))
     phone = Column(String)
@@ -26,3 +28,8 @@ class FamilyMember(Base):
     family = relationship("Family", foreign_keys=[family_id])
     user = relationship("User", foreign_keys=[user_id])
     created_by = relationship("User", foreign_keys=[created_by_user_id])
+
+    outgoing_relationships = relationship("Relationship", foreign_keys="Relationship.from_member_id",
+                                          back_populates="from_member", cascade="all, delete-orphan")
+    incoming_relationships = relationship("Relationship", foreign_keys="Relationship.to_member_id",
+                                          back_populates="to_member", cascade="all, delete-orphan")
