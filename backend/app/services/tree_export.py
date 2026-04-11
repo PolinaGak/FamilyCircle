@@ -17,6 +17,7 @@ class TreeExportService:
     def prepare_pdf_data(
             db: Session,
             family_id: int,
+            current_user_id: int,
             root_member_id: Optional[int] = None,
             include_inactive: bool = False,
             include_contacts: bool = False
@@ -31,7 +32,7 @@ class TreeExportService:
 
         # Получаем плоское дерево
         tree_data = tree_crud.build_tree(
-            db, family_id, root_member_id, include_inactive, max_depth=15
+            db, family_id, current_user_id, root_member_id, include_inactive, max_depth=15
         )
 
         # Преобразуем в иерархическую структуру по поколениям

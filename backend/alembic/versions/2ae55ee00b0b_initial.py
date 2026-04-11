@@ -128,7 +128,7 @@ def upgrade() -> None:
     sa.Column('album_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('can_edit', sa.Boolean(), nullable=True),
-    sa.Column('status', sa.Enum('invited', 'accepted', 'declined', name='invintationstatus'), nullable=True),
+    sa.Column('status', sa.Enum('invited', 'accepted', 'declined', name='invitationstatus'), nullable=True),
     sa.ForeignKeyConstraint(['album_id'], ['album.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('album_id', 'user_id')

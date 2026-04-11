@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 
 class TreeNode(BaseModel):
@@ -14,10 +14,9 @@ class TreeNode(BaseModel):
     photo_url: Optional[str] = None
     is_active: bool
     is_admin: bool
-    depth: int = 0
+    generation: int
+    partners: List[int] = []
     user_id: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TreeEdge(BaseModel):
@@ -28,13 +27,18 @@ class TreeEdge(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
+class FamilyUnit(BaseModel):
+    id: str
+    parents: List[int]
+    children: List[int]
+    type: str
+
 class TreeResponse(BaseModel):
     nodes: List[TreeNode]
     edges: List[TreeEdge]
-    root_id: Optional[int]
+    family_units: List[FamilyUnit]
+    root_id: Optional[int] = None
     family_id: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TreeSettings(BaseModel):
@@ -82,7 +86,11 @@ class RootInfo(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
+class RelativesGroup(BaseModel):
+    parents: List[Dict[str, Any]]
+    children: List[Dict[str, Any]]
+    spouses: List[Dict[str, Any]]
+    siblings: List[Dict[str, Any]]
 
 class PDFMetadata(BaseModel):
     family_name: str

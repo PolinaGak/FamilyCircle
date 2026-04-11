@@ -45,7 +45,8 @@ async def get_family_tree(
             family_id,
             root_member_id=root_member_id,
             include_inactive=include_inactive,
-            max_depth=max_depth
+            max_depth=max_depth,
+            current_user_id=current_user.id,
         )
         return tree_data
     except ValueError as e:
@@ -174,7 +175,7 @@ async def export_tree_pdf_data(
     """
     try:
         data = tree_export_service.prepare_pdf_data(
-            db, family_id, root_member_id, include_inactive, include_contacts
+            db, family_id, current_user.id,  root_member_id, include_inactive, include_contacts
         )
         return data
     except ValueError as e:
@@ -228,7 +229,7 @@ async def export_tree_generic(
 
     if params.format == "pdf" or params.format == "json":
         data = tree_export_service.prepare_pdf_data(
-            db, family_id,
+            db, family_id, current_user.id,
             params.root_member_id,
             params.include_inactive,
             params.include_contacts

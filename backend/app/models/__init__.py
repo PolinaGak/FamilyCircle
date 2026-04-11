@@ -18,5 +18,5 @@ from .message import Message
 from .event import Event
 from .event_participant import EventParticipant
 
-from .enums import ThemeType, RelationshipType, InvitationStatus
+from .enums import ThemeType, RelationshipType, InvitationStatus, Gender
 
