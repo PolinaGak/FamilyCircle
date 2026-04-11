@@ -240,6 +240,7 @@ async def password_reset_request(
 
 
 @router.post("/password-reset")
+@router.post("/password-reset")
 async def password_reset(reset_data: PasswordReset, db: Session = Depends(get_db)):
     user_id = decode_password_reset_token(reset_data.token)
     if not user_id:
@@ -253,6 +254,12 @@ async def password_reset(reset_data: PasswordReset, db: Session = Depends(get_db
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ERROR_MESSAGES["user_not_found"]
+        )
+
+    if verify_password(reset_data.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Новый пароль должен отличаться от текущего"
         )
 
     if not user_crud.update_password(db, user_id, reset_data.new_password):
