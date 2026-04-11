@@ -2,7 +2,6 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 
-from app.crud.tree import tree_crud
 from app.models import RelationshipType
 from app.models import Relationship
 from app.models.user import User
@@ -155,6 +154,8 @@ class FamilyCRUD:
 
                 # Определяем обратную связь с учетом полов
                 # Логика: смотрим кто является "целью" прямой связи, чтобы определить тип обратной
+
+                from app.crud import tree_crud
 
                 if member_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                     # related является родителем для member

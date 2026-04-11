@@ -6,3 +6,4 @@ from .photo import photo_crud
 from .event import event_crud
 from .chat import chat_crud
 from .message import message_crud
+from .tree import tree_crud
