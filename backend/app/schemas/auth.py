@@ -144,3 +144,21 @@ class PasswordChange(BaseModel):
 class LogoutResponse(BaseModel):
     success: bool
     message: str
+
+
+class UserUpdate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50, description="Новое имя пользователя")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError('Имя должно содержать минимум 2 символа')
+        return v
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "Иван Петров"
+        }
+    })

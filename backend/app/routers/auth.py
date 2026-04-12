@@ -20,6 +20,8 @@ from app.crud import user_crud
 from app.dependencies.auth import get_current_active_user
 import logging
 
+from app.schemas.auth import UserUpdate
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -309,3 +311,23 @@ async def change_password(
 
     logger.info(f"Password changed for user {current_user.id}")
     return {"success": True, "message": SUCCESS_MESSAGES["password_changed"]}
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_current_user(
+        user_data: UserUpdate,
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db)
+):
+    """
+    Обновить профиль текущего пользователя (только имя).
+    """
+    updated_user = user_crud.update_user(db, current_user.id, user_data.name)
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+
+    logger.info(f"User {current_user.id} updated their profile")
+    return updated_user

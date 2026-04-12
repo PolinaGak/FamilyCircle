@@ -172,5 +172,23 @@ class UserCRUD:
             "deleted": total - active
         }
 
+    @staticmethod
+    def update_user(db: Session, user_id: int, name: str) -> Optional[User]:
+        """Обновить имя пользователя"""
+        try:
+            user = UserCRUD.get_user_by_id(db, user_id)
+            if not user:
+                return None
+
+            user.name = name.strip()
+            db.commit()
+            db.refresh(user)
+            logger.info(f"User {user_id} name updated to: {user.name}")
+            return user
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {str(e)}")
+            db.rollback()
+            return None
+
 
 user_crud = UserCRUD()
