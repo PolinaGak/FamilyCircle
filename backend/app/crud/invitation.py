@@ -12,6 +12,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _ensure_aware(dt: datetime | None) -> datetime | None:
+    """
+    Гарантирует, что datetime имеет timezone info (UTC).
+    Если dt уже aware — возвращает как есть.
+    Если naive — добавляет UTC timezone.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 class InvitationCRUD:
     """CRUD операции для приглашений"""
@@ -118,7 +129,7 @@ class InvitationCRUD:
         if not invitation:
             return False, "Приглашение не найдено или неактивно", None
 
-        if datetime.now(timezone.utc) > invitation.expires_at:
+        if datetime.now(timezone.utc) > _ensure_aware(invitation.expires_at):
             invitation.is_active = False
             db.commit()
             return False, "Срок действия приглашения истек", None
