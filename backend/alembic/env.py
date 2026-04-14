@@ -25,8 +25,7 @@ from app.models.photo import Photo
 from app.models.album_member import AlbumMember
 from app.models.invitation import Invitation
 
-from app.core.config import settings
-DATABASE_URL = settings.DATABASE_URL
+from app.core.config import DATABASE_URL
 
 load_dotenv()
 
