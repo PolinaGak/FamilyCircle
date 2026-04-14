@@ -71,4 +71,12 @@ export const familyAPI = {
 
   removeMember: (memberId: number) =>
   apiClient.delete(`/family/member/${memberId}`),
-};
+
+  leaveFamily: (familyId: number) => 
+    apiClient.post(`/family/${familyId}/leave`),
+
+  deleteFamily: (familyId: number) =>
+  apiClient.delete(`/family/${familyId}`),
+}
+
+console.log('familyAPI.deleteFamily:', familyAPI.deleteFamily);

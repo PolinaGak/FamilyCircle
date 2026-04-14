@@ -9,7 +9,7 @@ const { Title } = Typography;
 const FamilyPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loadUserFamilies } = useAuth();
   const [family, setFamily] = useState<Family | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -162,24 +162,20 @@ const FamilyPage: React.FC = () => {
 };
 
   const handleRemoveMember = async (memberId: number, memberName: string) => {
-    console.log('Попытка удаления:', { memberId, memberName }); // Отладка 
-
-    // Подтверждение действия
+    console.log('Попытка удаления:', { memberId, memberName }); //   
     if (!window.confirm(`Вы уверены, что хотите исключить ${memberName} из семьи?`)) {
-      console.log('Удаление отменено'); //отладка
+      console.log('Удаление отменено'); 
       return;
     }
-    console.log('Отправка DELETE запроса...'); //отладка
+    console.log('Отправка DELETE запроса...'); 
     try {
       const response = await familyAPI.removeMember(memberId);
-      console.log('Ответ:', response); //отладка
+      console.log('Ответ:', response); 
       message.success(`${memberName} исключен(а) из семьи`);
       
-      // Обновляем список членов семьи
       const membersResponse = await familyAPI.getFamilyMembers(Number(id));
       setMembers(membersResponse.data);
       
-      // Если текущий пользователь - администратор, перезагружаем приглашения
       if (isAdmin) {
         const invitationsResponse = await invitationAPI.getFamilyInvitations(Number(id));
         setInvitations(invitationsResponse.data.filter(inv => inv.is_active === true));
@@ -190,6 +186,48 @@ const FamilyPage: React.FC = () => {
       message.error(error.response?.data?.detail || 'Не удалось исключить участника');
     }
   };
+
+
+  
+  //Выход из семьи участника
+  const handleLeaveFamily = async () => {
+    if (!window.confirm(`Вы уверены, что хотите покинуть семью "${family?.name}"?`)) {
+      return;
+    }
+    
+    try {
+      await familyAPI.leaveFamily(Number(id));
+      message.success(`Вы покинули семью "${family?.name}"`);
+      await loadUserFamilies();
+      navigate('/dashboard');
+      
+    } catch (error: any) {
+      console.error('Ошибка выхода из семьи:', error);
+      message.error(error.response?.data?.detail || 'Не удалось покинуть семью');
+    }
+  };
+
+  //удаление семьи ее администратором
+  const handleDeleteFamily = async () => {
+    if (!window.confirm(`Вы уверены, что хотите удалить семью "${family?.name}"?`)) {
+      return;
+    }
+    
+    if (!window.confirm(`Это действие нельзя будет отменить. Все данные семьи будут удалены. Вы уверены?`)) {
+      return;
+    }
+    
+    try {
+      await familyAPI.deleteFamily(Number(id));
+      message.success(`Семья "${family?.name}" удалена`);
+      await loadUserFamilies();
+      navigate('/dashboard');
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || 'Не удалось удалить семью');
+    }
+  };
+
+
 
   if (isLoading) {
     return (
@@ -218,15 +256,32 @@ const FamilyPage: React.FC = () => {
           На главную
         </Button>
         
-        {isAdmin && (
+        {!isAdmin && (
           <Button 
-            type="primary" 
-            icon={<UserAddOutlined />}
-            onClick={() => setIsInviteModalOpen(true)}
-            style={{ background: '#7b68ee' }}
+            danger
+            onClick={handleLeaveFamily}
           >
-            Пригласить
+            Покинуть семью
           </Button>
+        )}
+
+        {isAdmin && (
+          <>
+            <Button 
+              danger
+              onClick={handleDeleteFamily}
+            >
+              Удалить семью
+            </Button>
+            <Button 
+              type="primary" 
+              icon={<UserAddOutlined />}
+              onClick={() => setIsInviteModalOpen(true)}
+              style={{ background: '#7b68ee' }}
+            >
+              Пригласить
+            </Button>
+          </>
         )}
       </div>
       
@@ -275,7 +330,7 @@ const FamilyPage: React.FC = () => {
                       size="small" 
                       danger 
                       onClick={() => {
-                        console.log('ID участника:', member.id); //отладка
+                        console.log('ID участника:', member.id); // 
                         handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`);
                       }}
                     >
