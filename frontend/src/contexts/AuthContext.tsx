@@ -1,7 +1,6 @@
-// src/contexts/AuthContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { authAPI, User as APIUser, LoginResponse } from '../api/auth';
-
+import { familyAPI, Family } from '../api/family';
 export interface User {
   id: string;
   email: string;
@@ -11,6 +10,11 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  families: Family[]; 
+  currentFamily: Family | null;   
+  setCurrentFamily: (family: Family) => void;
+  loadUserFamilies: () => Promise<void>;
+
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -35,7 +39,8 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [currentFamily, setCurrentFamily] = useState<Family | null>(null);
   // При загрузке приложения проверяем, есть ли сохраненный пользователь
 useEffect(() => {
   const checkAuth = async () => {
@@ -71,16 +76,19 @@ useEffect(() => {
     setIsLoading(true);
     try {
       const response = await authAPI.login(email, password);
-      const { access_token, user } = response.data;  
+      const { access_token, user: userData } = response.data;
       
+      // Сохраняем только access_token (refresh_token в HttpOnly cookie)
       localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
       
-      console.log('Успешный вход:', user);
+      await loadUserFamilies();
+      console.log('Успешный вход:', userData);
     } catch (error: any) {
       console.error('Ошибка входа:', error);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
@@ -90,6 +98,8 @@ useEffect(() => {
       setIsLoading(false);
     }
   };
+
+
   // Функция регистрации
     const register = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -107,11 +117,11 @@ useEffect(() => {
       setIsLoading(false);
     }
   };
+
   // Функция восстановления пароля 
   const resetPassword = async (email: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Отправляем запрос к бэкенду
       await authAPI.resetPassword(email);
       
       console.log('Инструкции отправлены на:', email);
@@ -127,22 +137,47 @@ useEffect(() => {
     }
   };
 
-  const logout = () => {
+ const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setFamilies([]);
+    setCurrentFamily(null);
+    
+    // Очищаем cookie на сервере (опционально)
+    // Можно отправить запрос на logout
     console.log('Пользователь вышел из системы');
   };
 
+  // Загрузка семей пользователя
+  const loadUserFamilies = async () => {
+    try {
+      const response = await familyAPI.getMyFamilies();
+      setFamilies(response.data);
+      
+      // Если есть семьи и нет выбранной - выбираем первую
+      if (response.data.length > 0 && !currentFamily) {
+        setCurrentFamily(response.data[0]);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки семей:', error);
+      setFamilies([]);
+    }
+  };
 
   const value: AuthContextType = {
     user,
+    families,
+    currentFamily,
+    setCurrentFamily,
+    loadUserFamilies,
     login,
     register,
     resetPassword,
     logout,
     isLoading,
   };
+
 
   return (
     <AuthContext.Provider value={value}>

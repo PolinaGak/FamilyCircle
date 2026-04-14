@@ -36,4 +36,10 @@ export const authAPI = {
 
   getMe: () =>
     apiClient.get<User>('/auth/me'),
+
+  //обновление токена
+  refresh: () =>
+  apiClient.post<{ access_token: string; refresh_token?: string }>('/auth/refresh', {
+    refresh_token: localStorage.getItem('refresh_token'),
+  }),
 };
