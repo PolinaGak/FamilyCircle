@@ -7,7 +7,8 @@ import {
   MessageOutlined, 
   PictureOutlined, 
   CalendarOutlined, 
-  SettingOutlined 
+  SettingOutlined,
+  UserAddOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
@@ -24,6 +25,7 @@ const Sidebar: React.FC = () => {
     if (path.includes('gallery')) return '4';
     if (path.includes('calendar')) return '5';
     if (path.includes('settings')) return '6';
+    if (path.includes('join-family')) return '7';
     return '1';
   };
 
@@ -63,6 +65,12 @@ const Sidebar: React.FC = () => {
       icon: <SettingOutlined />,
       label: 'Настройки',
       onClick: () => navigate('/settings'),
+    },
+    {
+      key: '7',
+      icon: <UserAddOutlined />,
+      label: 'Присоединиться к семье',
+      onClick: () => navigate('/join-family'),
     },
   ];
 
