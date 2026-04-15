@@ -227,6 +227,39 @@ const FamilyPage: React.FC = () => {
     }
   };
 
+  
+  //передача прав админа
+  const handleTransferAdmin = async (targetMemberId: number, memberName: string) => {
+    if (!window.confirm(`Вы уверены, что хотите передать права администратора "${memberName}"?`)) {
+      return;
+    }
+    
+    if (!window.confirm(`Вы перестанете быть администратором. Это действие можно отменить, только если новый администратор передаст права обратно. Продолжить?`)) {
+      return;
+    }
+    
+    try {
+      await familyAPI.transferAdmin(Number(id), targetMemberId);
+      message.success(`Права администратора переданы "${memberName}"`);
+      
+      // Обновляем данные о семье
+      const membersResponse = await familyAPI.getFamilyMembers(Number(id));
+      setMembers(membersResponse.data);
+      
+      // Обновляем статус текущего пользователя
+      const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
+      setIsAdmin(currentMember?.is_admin || false);
+      
+      // Если текущий пользователь больше не админ, обновляем список приглашений
+      if (!currentMember?.is_admin) {
+        setInvitations([]);
+      }
+      
+    } catch (error: any) {
+      console.error('Ошибка передачи прав:', error);
+      message.error(error.response?.data?.detail || 'Не удалось передать права администратора');
+    }
+  };
 
 
   if (isLoading) {
@@ -302,15 +335,11 @@ const FamilyPage: React.FC = () => {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {members.map((member) => (
-            <div 
-              key={member.id}
-              style={{
-                padding: '12px',
-                border: '1px solid #e9ecef',
-                borderRadius: '8px',
-                background: '#f8f9fa'
-              }}
-            >
+            <div key={member.id} style={{
+              padding: '12px',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              background: '#f8f9fa'}}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <span style={{ fontWeight: 'bold' }}>
@@ -324,15 +353,24 @@ const FamilyPage: React.FC = () => {
                     <span style={{ color: '#666', fontSize: '12px' }}>Это вы</span>
                   )}
                   
+                  {/* Кнопка "Сделать администратором" - только для текущего админа и для обычных участников */}
+                  {isAdmin && !member.is_admin && member.user_id !== null && (
+                    <Button 
+                      size="small" 
+                      type="primary"
+                      style={{ background: '#801d7d' }}
+                      onClick={() => handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`)}
+                    >
+                      Сделать админом
+                    </Button>
+                  )}
+                  
                   {/* Кнопка удаления - только для администратора и не для себя */}
                   {isAdmin && member.user_id !== Number(user?.id) && (
                     <Button 
                       size="small" 
                       danger 
-                      onClick={() => {
-                        console.log('ID участника:', member.id); // 
-                        handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`);
-                      }}
+                      onClick={() => handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`)}
                     >
                       Исключить
                     </Button>
