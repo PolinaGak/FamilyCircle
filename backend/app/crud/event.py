@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 from datetime import datetime, timezone, timedelta
 
-from app.models.event import Event
-from app.models.event_participant import EventParticipant
-from app.models.chat import Chat
-from app.models.chat_member import ChatMember
-from app.models.enums import InvitationStatus
-from app.schemas.event import EventCreate, EventUpdate
+from backend.app.models.event import Event
+from backend.app.models.event_participant import EventParticipant
+from backend.app.models.chat import Chat
+from backend.app.models.chat_member import ChatMember
+from backend.app.models.enums import InvitationStatus
+from backend.app.schemas.event import EventCreate, EventUpdate
 import logging
 
 logger = logging.getLogger(__name__)

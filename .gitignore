@@ -49,7 +49,7 @@ frontend/build/
 
 # Backend
 backend/__pycache__/
-backend/.env
+.env
 backend/.venv/
 backend/venv/
 backend/*.pyc

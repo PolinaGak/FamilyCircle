@@ -2,16 +2,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import event_crud, family_crud, user_crud
-from app.services.event_notifications import event_notification_service
-from app.schemas.event import (
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import event_crud, family_crud, user_crud
+from backend.app.services.event_notifications import event_notification_service
+from backend.app.schemas.event import (
     EventCreate, EventUpdate, EventResponse, EventDetailResponse,
     EventListResponse, InviteParticipantRequest, RespondToInvitationRequest,
     CalendarEventResponse
 )
-from app.models.user import User
+from backend.app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)

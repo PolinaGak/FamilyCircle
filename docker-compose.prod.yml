@@ -1,0 +1,85 @@
+services:
+  db:
+    container_name: postgres_family_circle
+    image: postgres:15-alpine
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+    networks:
+      - family_network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - family_network
+
+  backend:
+    build: ./backend
+    container_name: family_circle_backend
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - family_network
+
+  frontend:
+    build: ./frontend
+    container_name: family_circle_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://111.88.144.235:8000
+    restart: unless-stopped
+    networks:
+      - family_network
+
+  celery_worker:
+    build: ./backend
+    command: celery -A backend.app.core.celery worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - family_network
+
+  celery_beat:
+    build: ./backend
+    command: celery -A backend.app.core.celery beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - family_network
+
+volumes:
+  postgres_data:
+
+networks:
+  family_network:

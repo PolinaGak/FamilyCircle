@@ -1,13 +1,12 @@
 from typing import Optional, List
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
-from app.models import RelationshipType, Gender
-from app.models.invitation import Invitation, generate_invite_code
-from app.models.family import Family
-from app.models.family_member import FamilyMember
-from app.schemas.invitation import InvitationCreateNewMember, InvitationCreateClaimMember
+from backend.app.models import RelationshipType, Gender
+from backend.app.models.invitation import Invitation, generate_invite_code
+from backend.app.models.family import Family
+from backend.app.models.family_member import FamilyMember
+from backend.app.schemas.invitation import InvitationCreateNewMember, InvitationCreateClaimMember
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ class InvitationCRUD:
     ) -> Invitation:
         """Создать приглашение для нового члена семьи"""
         try:
-            from app.crud.family import family_crud
+            from backend.app.crud.family import family_crud
 
             expires_at = datetime.now(timezone.utc) + timedelta(days=invitation_data.expires_in_days)
 
@@ -67,7 +66,7 @@ class InvitationCRUD:
     ) -> Invitation:
         """Создать приглашение для привязки существующей карточки"""
         try:
-            from app.crud.family import family_crud as fc
+            from backend.app.crud.family import family_crud as fc
             member = fc.get_member_by_id(db, invitation_data.member_id)
             if not member:
                 raise ValueError("Карточка не найдена")
@@ -137,10 +136,10 @@ class InvitationCRUD:
         if invitation.used_at:
             return False, "Приглашение уже использовано", None
 
-        from app.crud.family import family_crud as fc
+        from backend.app.crud.family import family_crud as fc
 
         if invitation.invitation_type == 'new_member':
-            from app.schemas.family_member import FamilyMemberCreate
+            from backend.app.schemas.family_member import FamilyMemberCreate
 
             member_data = FamilyMemberCreate(
                 first_name="Новый",
@@ -203,7 +202,7 @@ class InvitationCRUD:
         if not invitation:
             return False
 
-        from app.crud.family import family_crud
+        from backend.app.crud.family import family_crud
         is_admin = family_crud.is_family_admin(db, user_id, invitation.family_id)
 
         if invitation.created_by_user_id != user_id and not is_admin:

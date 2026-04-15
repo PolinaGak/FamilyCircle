@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
-from app.core.config import settings
+from backend.app.core.config import settings
 from typing import Optional, Literal, Dict, Any
 import logging
 import secrets

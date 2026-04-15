@@ -3,10 +3,10 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.database import get_db
-from app.crud import user_crud
-from app.core.security import decode_token
-from app.models.user import User
+from backend.app.database import get_db
+from backend.app.crud import user_crud
+from backend.app.core.security import decode_token
+from backend.app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",

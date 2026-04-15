@@ -3,19 +3,19 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 import magic
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import album_crud, photo_crud
-from app.schemas.album import (
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import album_crud, photo_crud
+from backend.app.schemas.album import (
     AlbumCreate, AlbumUpdate, AlbumResponse, AlbumDetailResponse,
     AlbumListResponse
 )
-from app.schemas.album_member import (
+from backend.app.schemas.album_member import (
     AlbumMemberAdd, AlbumAdminAdd,
     AlbumMemberResponse, AlbumAdminResponse
 )
-from app.schemas.photo import PhotoResponse, PhotoUploadResponse, PhotoListResponse
-from app.models.user import User
+from backend.app.schemas.photo import PhotoResponse, PhotoUploadResponse, PhotoListResponse
+from backend.app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,8 +30,8 @@ async def create_album(
         current_user: User = Depends(get_current_active_user)
 ):
     if album_data.event_id:
-        from app.models.event_participant import EventParticipant
-        from app.models.enums import InvitationStatus
+        from backend.app.models.event_participant import EventParticipant
+        from backend.app.models.enums import InvitationStatus
 
         has_access = db.query(EventParticipant).filter(
             EventParticipant.event_id == album_data.event_id,

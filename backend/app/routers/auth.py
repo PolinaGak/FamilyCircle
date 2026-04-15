@@ -4,23 +4,23 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
-from app.core.config import settings
-from app.core.email_utils import email_service
-from app.models import User
-from app.schemas.auth import (
+from backend.app.core.config import settings
+from backend.app.core.email_utils import email_service
+from backend.app.models import User
+from backend.app.schemas.auth import (
     UserCreate, UserResponse, PasswordResetRequest,
     PasswordReset, PasswordChange, LogoutResponse
 )
-from app.core.security import (
+from backend.app.core.security import (
     verify_password, create_access_token, create_refresh_token,
     decode_token, decode_verification_token, decode_password_reset_token
 )
-from app.database import get_db
-from app.crud import user_crud
-from app.dependencies.auth import get_current_active_user
+from backend.app.database import get_db
+from backend.app.crud import user_crud
+from backend.app.dependencies.auth import get_current_active_user
 import logging
 
-from app.schemas.auth import UserUpdate
+from backend.app.schemas.auth import UserUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])

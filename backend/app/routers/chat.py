@@ -2,16 +2,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import chat_crud, family_crud, user_crud
-from app.schemas.chat import (
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import chat_crud, family_crud, user_crud
+from backend.app.schemas.chat import (
     ChatCreate, ChatUpdate, ChatResponse, ChatDetailResponse,
     ChatListResponse, ChatMemberAdd, ChatMemberResponse, TransferAdminRequest
 )
-from app.schemas.message import MessageCreate, MessageResponse, MessageListResponse, MessageUpdate
-from app.models.user import User
-from app.crud.message import message_crud
+from backend.app.schemas.message import MessageCreate, MessageResponse, MessageListResponse, MessageUpdate
+from backend.app.models.user import User
+from backend.app.crud.message import message_crud
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ async def create_chat(
         )
 
     if chat_data.event_id:
-        from app.crud.event import event_crud
+        from backend.app.crud.event import event_crud
         if not event_crud.is_event_admin(db, current_user.id, chat_data.event_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

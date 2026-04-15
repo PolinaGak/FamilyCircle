@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from datetime import datetime
 from typing import Optional, List
 
-from app.models.enums import Gender, RelationshipType
+from backend.app.models.enums import Gender, RelationshipType
 
 
 class FamilyMemberBase(BaseModel):
