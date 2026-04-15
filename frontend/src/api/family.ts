@@ -77,6 +77,9 @@ export const familyAPI = {
 
   deleteFamily: (familyId: number) =>
   apiClient.delete(`/family/${familyId}`),
+
+  transferAdmin: (familyId: number, targetMemberId: number) =>
+  apiClient.post(`/family/${familyId}/transfer-admin?target_member_id=${targetMemberId}`),
 }
 
-console.log('familyAPI.deleteFamily:', familyAPI.deleteFamily);
+console.log('familyAPI.transferAdmin:', familyAPI.transferAdmin);
