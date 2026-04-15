@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: int
 
+    DATABASE_URL: str
+
     # JWT settings
     SECRET_KEY: str
     ALGORITHM: str
@@ -43,13 +45,16 @@ class Settings(BaseSettings):
     # Frontend URLs
     FRONTEND_URL: str
     VERIFY_EMAIL_URL: str
+    REDIS_URL: str
 
     # Backend URLs
     BACKEND_URL: str
 
     @property
-    def DATABASE_URL(self) -> str:
-        """Генерирует URL для подключения к PostgreSQL"""
+    def db_url(self) -> str:
+        """Возвращает URL для подключения к PostgreSQL"""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
         return (
             f"postgresql+psycopg2://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
@@ -64,7 +69,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-DATABASE_URL = settings.DATABASE_URL
+DATABASE_URL = settings.db_url
 
 __all__ = ["settings", "DATABASE_URL"]

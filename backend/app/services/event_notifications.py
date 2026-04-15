@@ -193,4 +193,64 @@ class EventNotificationService:
             logger.error(f"Ошибка отправки уведомления об отмене: {str(e)}")
 
 
+def send_event_reminder(self, db: Session, event: Event, user: User) -> bool:
+    """Отправить напоминание о событии за 24 часа"""
+    try:
+        subject = f"⏰ Напоминание: {event.title} завтра!"
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .reminder {{ background: #e3f2fd; border-left: 4px solid #2196f3; 
+                           padding: 20px; margin: 20px 0; border-radius: 4px; }}
+                .time {{ font-size: 18px; font-weight: bold; color: #1976d2; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>⏰ Напоминание о событии</h2>
+
+                <div class="reminder">
+                    <p>Завтра состоится событие:</p>
+                    <h3>{event.title}</h3>
+                    <p class="time">📅 {event.start_datetime.strftime('%d.%m.%Y в %H:%M')}</p>
+                    {'<p>📝 ' + event.description + '</p>' if event.description else ''}
+                </div>
+
+                <p>Не забудьте подготовиться! 😉</p>
+                <p>С уважением,<br>Family Circle</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_content = f"""
+        Напоминание о событии!
+
+        Завтра ({event.start_datetime.strftime('%d.%m.%Y')}) в {event.start_datetime.strftime('%H:%M')} 
+        состоится: {event.title}
+
+        Не забудьте!
+        """
+
+        success = self.send_email(
+            user.email,
+            subject,
+            html_content,
+            text_content
+        )
+
+        if success:
+            logger.info(f"Reminder sent for event {event.id} to user {user.id}")
+        return success
+
+    except Exception as e:
+        logger.error(f"Error sending reminder: {e}")
+        return False
+
 event_notification_service = EventNotificationService()
