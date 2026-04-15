@@ -6,8 +6,8 @@ import hashlib
 import shutil
 from pathlib import Path
 
-from app.models.photo import Photo
-from app.schemas.photo import PhotoUpdate
+from backend.app.models.photo import Photo
+from backend.app.schemas.photo import PhotoUpdate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ class PhotoCRUD:
         if not photo:
             return None
 
-        from app.crud.album import album_crud
+        from backend.app.crud.album import album_crud
         is_admin = album_crud.is_album_admin(db, user_id, photo.album_id)
         is_uploader = photo.uploaded_by_user_id == user_id
 
@@ -152,7 +152,7 @@ class PhotoCRUD:
         if not photo:
             return False
 
-        from app.crud.album import album_crud
+        from backend.app.crud.album import album_crud
         is_admin = album_crud.is_album_admin(db, user_id, photo.album_id)
         is_uploader = photo.uploaded_by_user_id == user_id
 

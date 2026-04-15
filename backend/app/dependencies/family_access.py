@@ -2,10 +2,10 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud.family import family_crud
-from app.models.user import User
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud.family import family_crud
+from backend.app.models.user import User
 
 
 def check_family_access(
@@ -58,7 +58,7 @@ def check_tree_edit_access(
 
     # Если указан member_id, проверяем что это своя карточка
     if member_id:
-        from app.crud.family import family_crud as fc
+        from backend.app.crud.family import family_crud as fc
         member = fc.get_member_by_id(db, member_id)
         if member and member.user_id == current_user.id:
             return current_user

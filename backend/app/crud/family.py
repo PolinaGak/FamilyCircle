@@ -2,14 +2,14 @@ from typing import Optional, List, Dict
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 
-from app.models import RelationshipType
-from app.models import Relationship
-from app.models.user import User
-from app.models.family import Family
-from app.models.family_member import FamilyMember
-from app.models.enums import Gender
-from app.schemas.family import FamilyCreate
-from app.schemas.family_member import FamilyMemberCreate, FamilyMemberUpdate
+from backend.app.models import RelationshipType
+from backend.app.models import Relationship
+from backend.app.models.user import User
+from backend.app.models.family import Family
+from backend.app.models.family_member import FamilyMember
+from backend.app.models.enums import Gender
+from backend.app.schemas.family import FamilyCreate
+from backend.app.schemas.family_member import FamilyMemberCreate, FamilyMemberUpdate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -174,7 +174,7 @@ class FamilyCRUD:
             # Проверяем связанного члена, если указан
             related_member = None
             if member_data.related_member_id:
-                from app.models.relationship import Relationship
+                from backend.app.models.relationship import Relationship
 
                 related_member = db.query(FamilyMember).filter(
                     FamilyMember.id == member_data.related_member_id,
@@ -211,8 +211,8 @@ class FamilyCRUD:
 
             # Создаем связь, если указана
             if member_data.related_member_id and member_data.relationship_type:
-                from app.models.relationship import Relationship
-                from app.crud.tree import tree_crud
+                from backend.app.models.relationship import Relationship
+                from backend.app.crud.tree import tree_crud
 
                 # Проверка на циклы (если добавляем родителя)
                 if member_data.relationship_type in [RelationshipType.father, RelationshipType.mother]:
@@ -300,8 +300,8 @@ class FamilyCRUD:
         Позволяет отдельно указать мать и/или отца.
         Если родители указаны, создаются соответствующие родительские связи.
         """
-        from app.models.relationship import Relationship
-        from app.crud.tree import tree_crud
+        from backend.app.models.relationship import Relationship
+        from backend.app.crud.tree import tree_crud
 
         # Проверяем существование базового члена семьи
         existing = db.query(FamilyMember).filter(
@@ -466,8 +466,8 @@ class FamilyCRUD:
             children_ids: Список ID детей, для которых создается родитель
             spouse_id: Опционально - ID супруга/супруги для создания связи spouse
         """
-        from app.models.relationship import Relationship
-        from app.crud.tree import tree_crud
+        from backend.app.models.relationship import Relationship
+        from backend.app.crud.tree import tree_crud
 
         # Определяем тип связи на основе пола (mother или father)
         if parent_data.get('gender') == Gender.male:
@@ -614,8 +614,8 @@ class FamilyCRUD:
             member_id: int,
             update_data: FamilyMemberUpdate
     ) -> Optional[FamilyMember]:
-        from app.models.relationship import Relationship
-        from app.crud.tree import tree_crud
+        from backend.app.models.relationship import Relationship
+        from backend.app.crud.tree import tree_crud
 
         member = FamilyCRUD.get_member_by_id(db, member_id)
         if not member:
@@ -706,7 +706,7 @@ class FamilyCRUD:
             if not member:
                 return False
 
-            from app.models.invitation import Invitation
+            from backend.app.models.invitation import Invitation
             db.query(Invitation).filter(Invitation.target_member_id == member_id).update(
                 {"target_member_id": None}, synchronize_session=False
             )

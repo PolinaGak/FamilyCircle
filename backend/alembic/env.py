@@ -8,24 +8,24 @@ from sqlalchemy import pool
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from app.database import Base
+from backend.app.database import Base
 from alembic import context
 
-from app.models.user import User
-from app.models.family import Family
-from app.models.family_member import FamilyMember
-from app.models.relationship import Relationship
-from app.models.event import Event
-from app.models.event_participant import EventParticipant
-from app.models.chat import Chat
-from app.models.chat_member import ChatMember
-from app.models.message import Message
-from app.models.album import Album
-from app.models.photo import Photo
-from app.models.album_member import AlbumMember
-from app.models.invitation import Invitation
+from backend.app.models.user import User
+from backend.app.models.family import Family
+from backend.app.models.family_member import FamilyMember
+from backend.app.models.relationship import Relationship
+from backend.app.models.event import Event
+from backend.app.models.event_participant import EventParticipant
+from backend.app.models.chat import Chat
+from backend.app.models.chat_member import ChatMember
+from backend.app.models.message import Message
+from backend.app.models.album import Album
+from backend.app.models.photo import Photo
+from backend.app.models.album_member import AlbumMember
+from backend.app.models.invitation import Invitation
 
-from app.core.config import DATABASE_URL
+from backend.app.core.config import DATABASE_URL
 
 load_dotenv()
 

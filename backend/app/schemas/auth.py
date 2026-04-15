@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional
 from datetime import datetime
 
-from app.models.enums import ThemeType
+from backend.app.models.enums import ThemeType
 
 
 class BasePasswordMixin:

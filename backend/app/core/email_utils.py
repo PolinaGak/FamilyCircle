@@ -5,8 +5,8 @@ import logging
 from typing import Optional
 from contextlib import contextmanager
 
-from app.core.config import settings
-from app.core.security import create_verification_token, create_password_reset_token
+from backend.app.core.config import settings
+from backend.app.core.security import create_verification_token, create_password_reset_token
 
 logger = logging.getLogger(__name__)
 

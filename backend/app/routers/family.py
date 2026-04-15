@@ -1,25 +1,22 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import exc
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import exc, func
 from sqlalchemy.orm import Session
-from fastapi import Query
-from sqlalchemy import func
-from app.models import FamilyMember
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import family_crud
-from app.schemas.family import (
+
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import family_crud
+from backend.app.schemas.family import (
     FamilyCreate, FamilyResponse, FamilyDetailResponse
 )
-from app.schemas.family_member import (
+from backend.app.schemas.family_member import (
     FamilyMemberCreate, FamilyMemberResponse,
     FamilyMemberUpdate, FamilyMemberApprove, SiblingCreate, ParentCreate
 )
+from backend.app.models.user import User
+from backend.app.models import FamilyMember
 
-from app.models.user import User
 import logging
-
-from app.models import FamilyMember
 
 logger = logging.getLogger(__name__)
 
@@ -442,8 +439,8 @@ async def get_members_without_parent(
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(status_code=403, detail="Нет доступа")
 
-    from app.models.relationship import Relationship
-    from app.models.enums import RelationshipType, Gender
+    from backend.app.models.relationship import Relationship
+    from backend.app.models.enums import RelationshipType, Gender
 
     # Определяем тип связи, которой не должно быть
     if gender == 'mother':
@@ -494,7 +491,7 @@ async def get_parent_candidates(
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(status_code=403, detail="Нет доступа")
 
-    from app.models.enums import Gender
+    from backend.app.models.enums import Gender
 
     try:
         gender_enum = Gender(gender)
@@ -509,7 +506,7 @@ async def get_parent_candidates(
 
     # Если указан existing_member_id, поднимаем его родителей в начало списка
     if existing_member_id:
-        from app.crud.tree import tree_crud
+        from backend.app.crud.tree import tree_crud
 
         try:
             existing_parents = tree_crud.get_member_relatives(db, existing_member_id)

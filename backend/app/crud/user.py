@@ -2,11 +2,11 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.enums import ThemeType
-from app.models.user import User
-from app.schemas.auth import UserCreate
+from backend.app.models.enums import ThemeType
+from backend.app.models.user import User
+from backend.app.schemas.auth import UserCreate
 from datetime import datetime, timezone
-from app.core.security import get_password_hash, verify_password
+from backend.app.core.security import get_password_hash, verify_password
 import logging
 
 logger = logging.getLogger(__name__)

@@ -2,14 +2,14 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import invitation_crud, family_crud
-from app.schemas.invitation import (
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import invitation_crud, family_crud
+from backend.app.schemas.invitation import (
     InvitationCreateNewMember, InvitationCreateClaimMember,
     InvitationResponse, InvitationCode, ClaimInvitationResponse
 )
-from app.models.user import User
+from backend.app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)

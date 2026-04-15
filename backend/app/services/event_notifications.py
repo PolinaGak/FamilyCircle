@@ -1,12 +1,10 @@
 from sqlalchemy.orm import Session
-from typing import List
 import logging
 
-from app.models.event import Event
-from app.models.event_participant import EventParticipant
-from app.models.user import User
-from app.core.email_utils import email_service
-from app.core.config import settings
+from backend.app.models.event import Event
+from backend.app.models.user import User
+from backend.app.core.email_utils import email_service
+from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +111,7 @@ class EventNotificationService:
     def notify_event_update(db: Session, event: Event, updated_by: User):
         """Уведомить участников об изменении события"""
         try:
-            from app.crud.event import event_crud
+            from backend.app.crud.event import event_crud
 
             participants = event_crud.get_event_participants(db, event.id)
             recipient_emails = []
@@ -155,7 +153,7 @@ class EventNotificationService:
     def notify_event_cancellation(db: Session, event: Event, cancelled_by: User):
         """Уведомить участников об отмене события"""
         try:
-            from app.crud.event import event_crud
+            from backend.app.crud.event import event_crud
 
             participants = event_crud.get_event_participants(db, event.id)
             recipient_emails = []

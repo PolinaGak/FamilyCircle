@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, List
-from app.models.enums import InvitationStatus
+from backend.app.models.enums import InvitationStatus
 
 
 class EventBase(BaseModel):

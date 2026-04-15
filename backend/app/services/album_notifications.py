@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 import logging
 
-from app.models.album import Album
-from app.models.photo import Photo
-from app.models.user import User
-from app.core.email_utils import email_service
+from backend.app.models.album import Album
+from backend.app.models.photo import Photo
+from backend.app.models.user import User
+from backend.app.core.email_utils import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class AlbumNotificationService:
         """Уведомить участников семьи о создании нового альбома"""
         try:
             # Получаем членов семьи кроме создателя
-            from app.crud.family import family_crud
+            from backend.app.crud.family import family_crud
 
             family_members = family_crud.get_family_members(album.family_id)
             recipient_emails = []

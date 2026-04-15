@@ -2,10 +2,10 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
 
-from app.models.message import Message
-from app.models.chat_member import ChatMember
-from app.models.enums import InvitationStatus
-from app.schemas.message import MessageCreate, MessageUpdate
+from backend.app.models.message import Message
+from backend.app.models.chat_member import ChatMember
+from backend.app.models.enums import InvitationStatus
+from backend.app.schemas.message import MessageCreate, MessageUpdate
 import logging
 
 logger = logging.getLogger(__name__)

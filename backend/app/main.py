@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, family, invitation, chat, event, album, photo, tree
-from app.core.celery import celery_app  # Импорт для регистрации задач
+from backend.app.routers import auth, family, invitation, chat, event, album, photo, tree
+from backend.app.core.celery import celery_app  # Импорт для регистрации задач
 
 logger = logging.getLogger(__name__)
 

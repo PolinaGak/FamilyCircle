@@ -1,17 +1,12 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_, func
 from datetime import datetime, timezone, timedelta
 
-from app.models.album import Album
-from app.models.album_member import AlbumMember
-from app.models.photo import Photo
-from app.models.event import Event
-from app.models.event_participant import EventParticipant
-from app.models.family_member import FamilyMember
-from app.models.enums import InvitationStatus
-from app.schemas.album import AlbumCreate, AlbumUpdate
-from app.schemas.album_member import AlbumMemberAdd
+from backend.app.models import (Album, AlbumMember, Photo, Event, EventParticipant,
+                                FamilyMember, InvitationStatus)
+
+from backend.app.schemas.album import AlbumCreate, AlbumUpdate
+from backend.app.schemas.album_member import AlbumMemberAdd
 import logging
 import os
 import hashlib
@@ -23,7 +18,7 @@ class AlbumCRUD:
     @staticmethod
     def create_album(db: Session, album_data: AlbumCreate, created_by_user_id: int) -> Album:
         try:
-            from app.crud.family import family_crud
+            from backend.app.crud.family import family_crud
             if not family_crud.is_family_member(db, created_by_user_id, album_data.family_id):
                 raise ValueError("Вы не являетесь членом этой семьи")
             album = Album(
@@ -191,7 +186,7 @@ class AlbumCRUD:
 
     @staticmethod
     def _is_family_member(db: Session, user_id: int, family_id: int) -> bool:
-        from app.crud.family import family_crud
+        from backend.app.crud.family import family_crud
         return family_crud.is_family_member(db, user_id, family_id)
 
     @staticmethod

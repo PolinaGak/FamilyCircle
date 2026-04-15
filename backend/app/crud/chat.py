@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 from datetime import datetime, timezone
 
-from app.models.chat import Chat
-from app.models.chat_member import ChatMember
-from app.models.message import Message
-from app.models.enums import InvitationStatus
-from app.schemas.chat import ChatCreate, ChatUpdate
+from backend.app.models.chat import Chat
+from backend.app.models.chat_member import ChatMember
+from backend.app.models.message import Message
+from backend.app.models.enums import InvitationStatus
+from backend.app.schemas.chat import ChatCreate, ChatUpdate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ class ChatCRUD:
         if not chat:
             raise ValueError("Чат не найден")
 
-        from app.crud.family import family_crud
+        from backend.app.crud.family import family_crud
         if not family_crud.is_family_member(db, user_id, chat.family_id):
             raise ValueError("Пользователь не является членом этой семьи")
 
@@ -168,7 +168,7 @@ class ChatCRUD:
         if not chat:
             raise ValueError("Чат не найден")
 
-        from app.crud.family import family_crud
+        from backend.app.crud.family import family_crud
         if not family_crud.is_family_member(db, user_id, chat.family_id):
             raise ValueError("Пользователь не является членом этой семьи")
 

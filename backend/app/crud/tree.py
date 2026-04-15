@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func
 from datetime import datetime
 
-from app.models.family_member import FamilyMember
-from app.models.relationship import Relationship
-from app.models.enums import RelationshipType, Gender
-from app.crud.family import family_crud
+from backend.app.models.family_member import FamilyMember
+from backend.app.models.relationship import Relationship
+from backend.app.models.enums import RelationshipType, Gender
+from backend.app.crud.family import family_crud
 import logging
 
 logger = logging.getLogger(__name__)

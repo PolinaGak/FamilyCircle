@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 import io
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.crud import photo_crud, album_crud
-from app.schemas.photo import PhotoResponse, PhotoUpdate
-from app.models.user import User
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.crud import photo_crud, album_crud
+from backend.app.schemas.photo import PhotoResponse, PhotoUpdate
+from backend.app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)

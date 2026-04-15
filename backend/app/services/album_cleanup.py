@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from typing import List
 import logging
 
-from app.models.album import Album
-from app.crud.album import album_crud
-from app.core.email_utils import email_service
+from backend.app.models.album import Album
+from backend.app.crud.album import album_crud
+from backend.app.core.email_utils import email_service
 
 logger = logging.getLogger(__name__)
 

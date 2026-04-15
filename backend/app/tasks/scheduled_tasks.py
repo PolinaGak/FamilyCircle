@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 import logging
 
-from app.database import SessionLocal
-from app.services.album_cleanup import album_cleanup_service
-from app.crud.event import event_crud
-from app.services.event_notifications import event_notification_service
-from app.models.event import Event
-from app.models.event_participant import EventParticipant
-from app.models.enums import InvitationStatus
+from backend.app.database import SessionLocal
+from backend.app.services.album_cleanup import album_cleanup_service
+from backend.app.crud.event import event_crud
+from backend.app.services.event_notifications import event_notification_service
+from backend.app.models.event import Event
+from backend.app.models.event_participant import EventParticipant
+from backend.app.models.enums import InvitationStatus
 
 logger = logging.getLogger(__name__)
 

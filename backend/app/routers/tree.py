@@ -3,22 +3,22 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.database import get_db
-from app.dependencies.auth import get_current_active_user
-from app.dependencies.family_access import (
+from backend.app.database import get_db
+from backend.app.dependencies.auth import get_current_active_user
+from backend.app.dependencies.family_access import (
     check_family_access,
     check_family_admin,
     check_tree_edit_access
 )
-from app.crud.tree import tree_crud
-from app.crud.family import family_crud
-from app.schemas.tree import (
+from backend.app.crud.tree import tree_crud
+from backend.app.crud.family import family_crud
+from backend.app.schemas.tree import (
     TreeResponse, TreeSettings, TreeSearchResult,
     SubtreeRequest, RootInfo, RelativesGroup,
     PDFExportData, ExportFormat
 )
-from app.services.tree_export import tree_export_service
-from app.models.user import User
+from backend.app.services.tree_export import tree_export_service
+from backend.app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)
