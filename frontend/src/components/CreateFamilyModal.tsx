@@ -23,7 +23,12 @@ const CreateFamilyModal: React.FC<CreateFamilyModalProps> = ({ isOpen, onClose, 
       onClose();
       setFamilyName('');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка создания семьи');
+      const errorDetail = err.response?.data?.detail;
+      if (errorDetail?.includes('лимит')) {
+        setError('Вы не можете создать более 3 семей. Достигнут лимит.');
+      } else {
+        setError(errorDetail || 'Ошибка создания семьи');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +56,7 @@ const CreateFamilyModal: React.FC<CreateFamilyModalProps> = ({ isOpen, onClose, 
         width: '400px',
         maxWidth: '90%'
       }}>
-        <h2>Создать новую семью</h2>
+        <h2 style={{ marginTop: 0 }}>Создать новую семью</h2>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Название семьи</label>
@@ -70,12 +75,49 @@ const CreateFamilyModal: React.FC<CreateFamilyModalProps> = ({ isOpen, onClose, 
               }}
             />
           </div>
-          {error && <div style={{ color: 'red', marginBottom: '16px' }}>{error}</div>}
+          {error && <div style={{ color: '#ff4d4f', marginBottom: '16px' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} disabled={isLoading} style={{ padding: '8px 16px' }}>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              disabled={isLoading} 
+              style={{ 
+                padding: '8px 16px',
+                background: '#f5f5f5',
+                color: '#666',
+                border: '1px solid #d9d9d9',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#e8e8e8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f5f5f5';
+              }}
+            >
               Отмена
             </button>
-            <button type="submit" disabled={isLoading} style={{ padding: '8px 16px', background: '#7b68ee', color: 'white', border: 'none', borderRadius: '4px' }}>
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              style={{ 
+                padding: '8px 16px',
+                background: '#7b68ee',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#5a4fd0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#7b68ee';
+              }}
+            >
               {isLoading ? 'Создание...' : 'Создать'}
             </button>
           </div>

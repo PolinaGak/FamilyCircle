@@ -5,6 +5,8 @@ import { ArrowLeftOutlined, UserAddOutlined, CopyOutlined } from '@ant-design/ic
 import { familyAPI, Family, FamilyMember} from '../api/family';
 import { invitationAPI, Invitation } from '../api/invitation';
 import { useAuth } from '../contexts/AuthContext';
+import { EditOutlined } from '@ant-design/icons';
+
 const { Title } = Typography;
 const FamilyPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +30,8 @@ const FamilyPage: React.FC = () => {
     workplace: '',
     residence: '',
   });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFamilyName, setEditFamilyName] = useState('');
 
   // Загружаем данные семьи
   useEffect(() => {
@@ -151,8 +155,6 @@ const FamilyPage: React.FC = () => {
   try {
     await invitationAPI.deactivateInvitation(invitationId);
     message.success(`Приглашение ${invitationCode} отозвано`);
-    
-    // Удаляем из локального состояния
     setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
     
   } catch (error: any) {
@@ -261,6 +263,25 @@ const FamilyPage: React.FC = () => {
     }
   };
 
+  //функция редактирования названия семьи
+  const handleUpdateFamilyName = async () => {
+    if (!editFamilyName.trim()) {
+      message.warning('Название семьи не может быть пустым');
+      return;
+    }
+    
+    try {
+      await familyAPI.updateFamily(Number(id), editFamilyName);
+      message.success('Название семьи обновлено');
+      const updatedFamily = await familyAPI.getFamilyDetail(Number(id));
+      setFamily(updatedFamily.data);
+      await loadUserFamilies();
+      setIsEditModalOpen(false);
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || 'Не удалось обновить название');
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -319,7 +340,19 @@ const FamilyPage: React.FC = () => {
       </div>
       
       <Card>
-        <Title level={2}>{family.name}</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Title level={2} style={{ margin: 0 }}>{family.name}</Title>
+          {isAdmin && (
+            <Button 
+              type="text" 
+              icon={<EditOutlined />} 
+              onClick={() => {
+                setEditFamilyName(family.name);
+                setIsEditModalOpen(true);
+              }}
+            />
+          )}
+        </div>
         
         <Descriptions bordered column={1} style={{ marginTop: '20px' }}>
           <Descriptions.Item label="ID семьи">{family.id}</Descriptions.Item>
@@ -358,7 +391,7 @@ const FamilyPage: React.FC = () => {
                     <Button 
                       size="small" 
                       type="primary"
-                      style={{ background: '#801d7d' }}
+                      style={{ background: '#7b68ee' }}
                       onClick={() => handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`)}
                     >
                       Сделать админом
@@ -521,6 +554,26 @@ const FamilyPage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/*модальное окно для редактирования названия семьи*/}
+      <Modal
+      title="Редактировать название семьи"
+      open={isEditModalOpen}
+      onOk={handleUpdateFamilyName}
+      onCancel={() => setIsEditModalOpen(false)}
+      okText="Сохранить"     
+      cancelText="Отмена"  
+      okButtonProps={{ 
+        style: { backgroundColor: '#7b68ee', borderColor: '#7b68ee' } 
+      }} 
+    >
+      <Input
+        value={editFamilyName}
+        onChange={(e) => setEditFamilyName(e.target.value)}
+        placeholder="Введите новое название семьи"
+        autoFocus
+      />
+    </Modal>
     </div>
   );
 };

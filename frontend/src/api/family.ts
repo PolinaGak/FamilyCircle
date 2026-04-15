@@ -80,6 +80,9 @@ export const familyAPI = {
 
   transferAdmin: (familyId: number, targetMemberId: number) =>
   apiClient.post(`/family/${familyId}/transfer-admin?target_member_id=${targetMemberId}`),
+
+  updateFamily: (familyId: number, name: string) =>
+  apiClient.put<Family>(`/family/${familyId}`, { name }),
 }
 
-console.log('familyAPI.transferAdmin:', familyAPI.transferAdmin);
+console.log('familyAPI.updateFamily:', familyAPI.updateFamily);

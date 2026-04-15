@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import exc
 from sqlalchemy.orm import Session
 from fastapi import Query
-
+from sqlalchemy import func
+from app.models import FamilyMember
 from app.database import get_db
 from app.dependencies.auth import get_current_active_user
 from app.crud import family_crud
@@ -31,6 +32,19 @@ async def create_family(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
+    MAX_FAMILIES_PER_USER = 3
+    families_count = db.query(func.count(FamilyMember.id)).filter(
+        FamilyMember.user_id == current_user.id,
+        FamilyMember.is_admin == True
+    ).scalar()
+    
+    if families_count >= MAX_FAMILIES_PER_USER:
+        logger.warning(f"Пользователь {current_user.id} пытается создать {families_count + 1}-ю семью (лимит {MAX_FAMILIES_PER_USER})")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Вы не можете создать более {MAX_FAMILIES_PER_USER} семей. Достигнут лимит."
+        )
+    
     try:
         family = family_crud.create_family(db, family_data, current_user.id)
         logger.info(f"Семья '{family.name}' создана пользователем {current_user.id}")
