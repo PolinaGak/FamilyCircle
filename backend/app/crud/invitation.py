@@ -183,11 +183,13 @@ class InvitationCRUD:
             member.user_id = claiming_user_id
             member.is_active = True
 
+            db.add(member)
 
             invitation.used_at = datetime.now(timezone.utc)
             invitation.used_by_user_id = claiming_user_id
             invitation.is_active = False
 
+            db.flush()
             db.commit()
             db.refresh(member)
 

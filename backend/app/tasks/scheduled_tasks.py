@@ -78,8 +78,6 @@ def send_event_reminders():
         target_time = now + timedelta(hours=24)
         window = timedelta(minutes=15)
 
-        # Ищем события, которые начнутся примерно через 24 часа
-        # и ещё не было напоминания (или проверяем флаг)
         events = db.query(Event).filter(
             Event.start_datetime >= target_time - window,
             Event.start_datetime <= target_time + window,
@@ -88,7 +86,6 @@ def send_event_reminders():
 
         sent_count = 0
         for event in events:
-            # Получаем подтверждённых участников
             participants = event_crud.get_event_participants(
                 db, event.id, status=InvitationStatus.accepted
             )

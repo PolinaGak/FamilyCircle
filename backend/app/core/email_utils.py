@@ -96,7 +96,6 @@ class EmailService:
             html_part = MIMEText(html_content, 'html', 'utf-8')
             msg.attach(html_part)
 
-            # Отправляем
             with self._create_connection() as server:
                 server.send_message(msg)
 
@@ -263,7 +262,6 @@ class EmailService:
 
         return self.send_email(email, subject, html_content)
 
-    # app/core/email_utils.py (добавьте этот метод)
 
     def send_password_reset_email(self, email: str, user_id: int, username: str) -> bool:
         """Отправить письмо для сброса пароля"""
@@ -412,7 +410,6 @@ class EmailService:
         logger.info(f"📧 Email saved to file: {filename}")
 
 
-# Создаем экземпляр с учетом настроек
 if settings.DEBUG and not getattr(settings, 'SEND_REAL_EMAILS', False):
     logger.info("📧 Email service running in DEV mode (emails saved to files)")
 

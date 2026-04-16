@@ -180,7 +180,6 @@ async def add_sibling(
     - mother_id: ID матери в семье (опционально, но рекомендуется)
     - father_id: ID отца в семье (опционально, но рекомендуется)
     """
-    # Проверка доступа к семье
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -188,7 +187,6 @@ async def add_sibling(
         )
 
     try:
-        # Подготавливаем данные для CRUD
         member_dict = {
             "first_name": sibling_data.first_name,
             "last_name": sibling_data.last_name,
@@ -239,7 +237,6 @@ async def add_parent(
     - Указывается список детей (children_ids), к которым привязывается родитель
     - Опционально можно сразу привязать к супругу/супруге (spouse_id)
     """
-    # Проверка доступа к семье
     if not family_crud.is_family_member(db, current_user.id, family_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -249,7 +246,6 @@ async def add_parent(
     is_admin = family_crud.is_family_admin(db, current_user.id, family_id)
 
     try:
-        # Подготавливаем данные родителя
         parent_dict = {
             "first_name": parent_data.first_name,
             "last_name": parent_data.last_name,
@@ -260,9 +256,9 @@ async def add_parent(
             "phone": parent_data.phone,
             "workplace": parent_data.workplace,
             "residence": parent_data.residence,
-            "is_admin": False,  # Родитель по умолчанию не админ
-            "user_id": None,  # Можно добавить поле в схему, если нужно
-            "approved": is_admin  # Если создатель админ - сразу подтверждаем
+            "is_admin": False,
+            "user_id": None,
+            "approved": is_admin
         }
 
         member = family_crud.add_parent(
@@ -428,7 +424,7 @@ async def leave_family(
 @router.get("/{family_id}/members/without-parent/{gender}")
 async def get_members_without_parent(
         family_id: int,
-        gender: str,  # 'mother' или 'father'
+        gender: str,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
@@ -442,7 +438,6 @@ async def get_members_without_parent(
     from backend.app.models.relationship import Relationship
     from backend.app.models.enums import RelationshipType, Gender
 
-    # Определяем тип связи, которой не должно быть
     if gender == 'mother':
         exclude_rel = RelationshipType.mother
         expected_gender = Gender.female
@@ -452,7 +447,6 @@ async def get_members_without_parent(
     else:
         raise HTTPException(status_code=400, detail="gender должен быть 'mother' или 'father'")
 
-    # Получаем всех членов семьи, у которых нет такой связи
     subquery = db.query(Relationship.from_member_id).filter(
         Relationship.relationship_type == exclude_rel,
         Relationship.from_member_id.in_(
@@ -498,13 +492,10 @@ async def get_parent_candidates(
     except ValueError:
         raise HTTPException(status_code=400, detail="gender должен быть 'male' или 'female'")
 
-    # Получаем всех членов семьи нужного пола
     candidates = family_crud.get_parent_candidates(db, family_id, gender_enum)
 
-    # Инициализируем пустое множество для случая, когда existing_member_id не передан
     parent_ids = set()
 
-    # Если указан existing_member_id, поднимаем его родителей в начало списка
     if existing_member_id:
         from backend.app.crud.tree import tree_crud
 
@@ -512,10 +503,8 @@ async def get_parent_candidates(
             existing_parents = tree_crud.get_member_relatives(db, existing_member_id)
             parent_ids = {p["id"] for p in existing_parents.get("parents", [])}
 
-            # Сортируем: сначала родители (False < True), потом по фамилии
             candidates.sort(key=lambda x: (x.id not in parent_ids, x.last_name))
         except ValueError:
-            # Если member не найден, просто возвращаем как есть
             pass
 
     return [

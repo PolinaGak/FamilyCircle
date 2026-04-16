@@ -1,10 +1,8 @@
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_
 
 from backend.app.models import RelationshipType
 from backend.app.models import Relationship
-from backend.app.models.user import User
 from backend.app.models.family import Family
 from backend.app.models.family_member import FamilyMember
 from backend.app.models.enums import Gender
@@ -57,8 +55,6 @@ class FamilyCRUD:
                 continue
             visited.add(current_id)
 
-            # Ищем родителей current_id (те, кто указывает на current_id как на ребенка)
-            # Связь: ancestor -> current_id с типом son/daughter означает, что ancestor - родитель
             parent_rels = db.query(Relationship).filter(
                 Relationship.to_member_id == current_id,
                 Relationship.relationship_type.in_([RelationshipType.son, RelationshipType.daughter])
@@ -68,7 +64,6 @@ class FamilyCRUD:
                 if rel.from_member_id not in visited:
                     queue.append(rel.from_member_id)
 
-            # Также проверяем исходящие связи current_id -> ancestor с типом father/mother
             ancestor_rels = db.query(Relationship).filter(
                 Relationship.from_member_id == current_id,
                 Relationship.relationship_type.in_([RelationshipType.father, RelationshipType.mother])
@@ -99,7 +94,7 @@ class FamilyCRUD:
                 first_name="Администратор",
                 last_name="Семьи",
                 birth_date=datetime.now(),
-                gender=Gender.male,  # Дефолтное значение для админа
+                gender=Gender.male,
                 is_admin=True,
                 approved=True,
                 is_active=True,
@@ -171,7 +166,6 @@ class FamilyCRUD:
             created_by_user_id: int
     ) -> FamilyMember:
         try:
-            # Проверяем связанного члена, если указан
             related_member = None
             if member_data.related_member_id:
                 from backend.app.models.relationship import Relationship
@@ -184,7 +178,6 @@ class FamilyCRUD:
                 if not related_member:
                     raise ValueError("Указанный связанный член семьи не найден или принадлежит другой семье")
 
-                # Валидация пола для связанного члена
                 if member_data.relationship_type:
                     self._validate_gender_consistency(related_member, member_data.relationship_type)
 
@@ -207,20 +200,17 @@ class FamilyCRUD:
             )
 
             db.add(member)
-            db.flush()  # Получаем ID до коммита
+            db.flush()
 
-            # Создаем связь, если указана
             if member_data.related_member_id and member_data.relationship_type:
                 from backend.app.models.relationship import Relationship
                 from backend.app.crud.tree import tree_crud
 
-                # Проверка на циклы (если добавляем родителя)
                 if member_data.relationship_type in [RelationshipType.father, RelationshipType.mother]:
                     if self._would_create_ancestor_cycle(db, member_data.related_member_id, member.id):
                         raise ValueError(
                             "Невозможно установить связь: образуется цикл в родословной (предок не может быть потомком)")
 
-                # Проверка на дубликаты
                 existing_rel = db.query(Relationship).filter(
                     Relationship.from_member_id == member_data.related_member_id,
                     Relationship.to_member_id == member.id,
@@ -230,7 +220,6 @@ class FamilyCRUD:
                 if existing_rel:
                     raise ValueError("Такая связь уже существует")
 
-                # Прямая связь (например: related - отец, новый - сын)
                 rel = Relationship(
                     from_member_id=member_data.related_member_id,
                     to_member_id=member.id,
@@ -238,27 +227,20 @@ class FamilyCRUD:
                 )
                 db.add(rel)
 
-                # Определяем обратную связь с учетом полов
                 if member_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
-                    # related является родителем для member
-                    # Обратная связь зависит от пола родителя (related)
                     reverse_type = tree_crud._get_reverse_relationship(
                         member_data.relationship_type,
                         related_member.gender
                     )
                 else:
-                    # related является father/mother/spouse для member
-                    # Обратная связь зависит от пола member (ребенка/партнера)
                     reverse_type = tree_crud._get_reverse_relationship(
                         member_data.relationship_type,
                         member.gender
                     )
 
                 if reverse_type:
-                    # Валидация пола для обратной связи
                     self._validate_gender_consistency(member, reverse_type)
 
-                    # Проверка дубликата обратной связи
                     existing_reverse = db.query(Relationship).filter(
                         Relationship.from_member_id == member.id,
                         Relationship.to_member_id == member_data.related_member_id,
@@ -302,8 +284,6 @@ class FamilyCRUD:
         """
         from backend.app.models.relationship import Relationship
         from backend.app.crud.tree import tree_crud
-
-        # Проверяем существование базового члена семьи
         existing = db.query(FamilyMember).filter(
             FamilyMember.id == existing_member_id,
             FamilyMember.family_id == family_id
@@ -316,13 +296,11 @@ class FamilyCRUD:
         if not gender:
             raise ValueError("Не указан пол нового члена семьи")
 
-        # Определяем тип связи на основе пола нового члена
         if gender == Gender.male:
             sibling_rel_type = RelationshipType.brother
         else:
             sibling_rel_type = RelationshipType.sister
 
-        # Создаем нового члена семьи
         member = FamilyMember(
             family_id=family_id,
             user_id=sibling_data.get('user_id'),
@@ -342,9 +320,8 @@ class FamilyCRUD:
         )
 
         db.add(member)
-        db.flush()  # Получаем ID
+        db.flush()
 
-        # Создаем двустороннюю связь brother/sister
         existing_rel_type = RelationshipType.brother if existing.gender == Gender.male else RelationshipType.sister
 
         rel1 = Relationship(
@@ -361,7 +338,6 @@ class FamilyCRUD:
         )
         db.add(rel2)
 
-        # Обрабатываем мать, если указана
         if mother_id:
             mother = db.query(FamilyMember).filter(
                 FamilyMember.id == mother_id,
@@ -373,11 +349,9 @@ class FamilyCRUD:
 
             FamilyCRUD._validate_gender_consistency(mother, RelationshipType.mother)
 
-            # Проверка цикла: мать не может быть потомком ребенка
             if FamilyCRUD._would_create_ancestor_cycle(db, mother.id, member.id):
                 raise ValueError("Невозможно установить мать: образуется цикл в родословной")
 
-            # Проверка дубликата
             existing_child_rel = db.query(Relationship).filter(
                 Relationship.from_member_id == mother_id,
                 Relationship.to_member_id == member.id,
@@ -400,7 +374,6 @@ class FamilyCRUD:
                 )
                 db.add(rel_m_rev)
 
-        # Обрабатываем отца, если указан
         if father_id:
             father = db.query(FamilyMember).filter(
                 FamilyMember.id == father_id,
@@ -412,11 +385,9 @@ class FamilyCRUD:
 
             FamilyCRUD._validate_gender_consistency(father, RelationshipType.father)
 
-            # Проверка цикла
             if FamilyCRUD._would_create_ancestor_cycle(db, father.id, member.id):
                 raise ValueError("Невозможно установить отца: образуется цикл в родословной")
 
-            # Проверка дубликата
             existing_child_rel = db.query(Relationship).filter(
                 Relationship.from_member_id == father_id,
                 Relationship.to_member_id == member.id,
@@ -469,7 +440,6 @@ class FamilyCRUD:
         from backend.app.models.relationship import Relationship
         from backend.app.crud.tree import tree_crud
 
-        # Определяем тип связи на основе пола (mother или father)
         if parent_data.get('gender') == Gender.male:
             parent_rel_type = RelationshipType.father
         elif parent_data.get('gender') == Gender.female:
@@ -477,7 +447,6 @@ class FamilyCRUD:
         else:
             raise ValueError("Необходимо указать пол родителя (male/female)")
 
-        # Проверяем, что все дети существуют и принадлежат к этой семье
         children = []
         for child_id in children_ids:
             child = db.query(FamilyMember).filter(
@@ -488,7 +457,6 @@ class FamilyCRUD:
                 raise ValueError(f"Ребенок с ID {child_id} не найден в этой семье")
             children.append(child)
 
-        # Проверяем супруга, если указан
         spouse = None
         if spouse_id:
             spouse = db.query(FamilyMember).filter(
@@ -498,11 +466,9 @@ class FamilyCRUD:
             if not spouse:
                 raise ValueError("Указанный супруг/супруга не найден в этой семье")
 
-            # Проверяем соответствие полов
             if spouse.gender == parent_data.get('gender'):
                 raise ValueError("Супруги должны быть разного пола")
 
-        # Создаем родителя
         parent = FamilyMember(
             family_id=family_id,
             user_id=parent_data.get('user_id'),
@@ -522,22 +488,17 @@ class FamilyCRUD:
         )
 
         db.add(parent)
-        db.flush()  # Получаем ID родителя
+        db.flush()
 
-        # Создаем связи со всеми детьми
         for child in children:
-            # Проверка на циклы: родитель не может быть потомком своего ребенка
             if self._would_create_ancestor_cycle(db, parent.id, child.id):
                 raise ValueError(f"Невозможно установить связь с ребенком {child.id}: образуется цикл в родословной")
 
-            # Определяем тип связи ребенок -> родитель (son/daughter)
             if child.gender == Gender.male:
                 child_rel_type = RelationshipType.son
             else:
                 child_rel_type = RelationshipType.daughter
 
-            # 1. Связь родитель -> ребенок (father/mother -> son/daughter)
-            # Проверяем, не существует ли уже такой связи
             existing = db.query(Relationship).filter(
                 Relationship.from_member_id == parent.id,
                 Relationship.to_member_id == child.id,
@@ -552,7 +513,6 @@ class FamilyCRUD:
                 )
                 db.add(rel)
 
-            # 2. Обратная связь ребенок -> родитель (son/daughter -> father/mother)
             existing_reverse = db.query(Relationship).filter(
                 Relationship.from_member_id == child.id,
                 Relationship.to_member_id == parent.id,
@@ -567,9 +527,7 @@ class FamilyCRUD:
                 )
                 db.add(reverse_rel)
 
-        # 3. Связь с супругом/супругой (spouse), если указан
         if spouse:
-            # Проверяем, нет ли уже такой связи
             existing_spouse = db.query(Relationship).filter(
                 Relationship.from_member_id == parent.id,
                 Relationship.to_member_id == spouse.id,
@@ -577,7 +535,6 @@ class FamilyCRUD:
             ).first()
 
             if not existing_spouse:
-                # Двусторонняя связь spouse
                 rel1 = Relationship(
                     from_member_id=parent.id,
                     to_member_id=spouse.id,
@@ -623,9 +580,7 @@ class FamilyCRUD:
 
         update_dict = update_data.model_dump(exclude_unset=True)
 
-        # Обрабатываем создание новых связей при обновлении
         if (update_data.related_member_id and update_data.relationship_type):
-            # Проверяем, что такой связи еще нет
             existing = db.query(Relationship).filter(
                 Relationship.from_member_id == update_data.related_member_id,
                 Relationship.to_member_id == member_id
@@ -635,15 +590,12 @@ class FamilyCRUD:
                 related = db.get(FamilyMember, update_data.related_member_id)
                 if related and related.family_id == member.family_id:
 
-                    # Валидация пола
                     FamilyCRUD._validate_gender_consistency(related, update_data.relationship_type)
 
-                    # Проверка на циклы (если добавляем родителя)
                     if update_data.relationship_type in [RelationshipType.father, RelationshipType.mother]:
                         if FamilyCRUD._would_create_ancestor_cycle(db, related.id, member_id):
                             raise ValueError("Невозможно установить связь: образуется цикл в родословной")
 
-                    # Прямая связь
                     rel = Relationship(
                         from_member_id=update_data.related_member_id,
                         to_member_id=member_id,
@@ -651,25 +603,20 @@ class FamilyCRUD:
                     )
                     db.add(rel)
 
-                    # Обратная связь с учетом пола
                     if update_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
-                        # related является родителем, обратная зависит от пола родителя
                         reverse_type = tree_crud._get_reverse_relationship(
                             update_data.relationship_type, related.gender
                         )
                     elif update_data.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
-                        # Для брат/сестра обратная зависит от пола related (к которому привязываемся)
                         reverse_type = tree_crud._get_reverse_relationship(
                             update_data.relationship_type, related.gender
                         )
                     else:
-                        # father/mother/spouse/partner - обратная зависит от пола member
                         reverse_type = tree_crud._get_reverse_relationship(
                             update_data.relationship_type, member.gender
                         )
 
                     if reverse_type:
-                        # Валидация пола для обратной связи
                         FamilyCRUD._validate_gender_consistency(member, reverse_type)
 
                         reverse = Relationship(
@@ -679,7 +626,6 @@ class FamilyCRUD:
                         )
                         db.add(reverse)
 
-        # Обновляем остальные поля
         for key, value in update_dict.items():
             if key not in ['related_member_id', 'relationship_type'] and value is not None:
                 setattr(member, key, value)
@@ -809,7 +755,7 @@ class FamilyCRUD:
         query = db.query(FamilyMember).filter(
             FamilyMember.family_id == family_id,
             FamilyMember.gender == gender,
-            FamilyMember.is_active == True  # Только активные, или убрать если нужны все
+            FamilyMember.is_active == True
         ).order_by(FamilyMember.last_name, FamilyMember.first_name)
 
         return query.all()
