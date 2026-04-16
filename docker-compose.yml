@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: family_circle_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pwd
+      - POSTGRES_DB=test_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - family_network
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: family_circle_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://test_user:test_pwd@db:5432/test_db
+      - SECRET_KEY=pfVzLLKNLQ3i2PguxPQs_kmdvrJVGP8MlHTVx6kjKOE
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - BACKEND_URL=http://localhost:8000
+      - FRONTEND_URL=http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - family_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: family_circle_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - family_network
+
+networks:
+  family_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -6,7 +6,7 @@
   --text-dark: #2d3436;             
 }
 
-/* Общие стили для Ant Design компонентов */
+
 .ant-layout {
   background: var(--background-light) !important;
 }

@@ -34,7 +34,7 @@ const Sidebar: React.FC = () => {
       key: '1',
       icon: <HomeOutlined />,
       label: 'Главная',
-      onClick: () => navigate('/'),
+      onClick: () => navigate('/dashboard'),
     },
     {
       key: '2',

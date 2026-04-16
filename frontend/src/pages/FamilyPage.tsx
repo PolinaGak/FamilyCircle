@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Spin, Button, Descriptions, message, Modal, Input, Space, Tag, Form, Select } from 'antd';
+import { Card, Typography, Spin, Button, Descriptions, message, Modal, Input, Space, Tag, Form, Select, Radio } from 'antd';
 import { ArrowLeftOutlined, UserAddOutlined, CopyOutlined } from '@ant-design/icons';
 import { familyAPI, Family, FamilyMember} from '../api/family';
 import { invitationAPI, Invitation } from '../api/invitation';
@@ -19,6 +19,7 @@ const FamilyPage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [invitationType, setInvitationType] = useState<'new' | 'claim'>('new');
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
   const [inviteFormData, setInviteFormData] = useState({
     first_name: '',
@@ -71,55 +72,70 @@ const FamilyPage: React.FC = () => {
   }, [id, user?.id]);
 
   //создание карточки и приглашения
-  const handleCreateInvitationWithMember = async () => {
+  const handleCreateInvitation = async () => {
     if (!id) return;
     
-    // Валидация
-    if (!inviteFormData.first_name || !inviteFormData.last_name || !inviteFormData.birth_date) {
-      message.warning('Пожалуйста, заполните обязательные поля (Имя, Фамилия, Дата рождения)');
-      return;
-    }
-    const birthDate = new Date(inviteFormData.birth_date).toISOString();
     setIsCreatingInvite(true);
+    
     try {
-      // Создаем карточку родственника
-      const memberResponse = await familyAPI.createMember(Number(id), {
-        first_name: inviteFormData.first_name,
-        last_name: inviteFormData.last_name,
-        patronymic: inviteFormData.patronymic || undefined,
-        birth_date: birthDate,
-        gender: inviteFormData.gender,  
-        phone: inviteFormData.phone || undefined,
-        workplace: inviteFormData.workplace || undefined,
-        residence: inviteFormData.residence || undefined,
-        is_admin: false,
+      let invitationResponse;
+      
+      if (invitationType === 'new') {
+        //для нового:
+        invitationResponse = await invitationAPI.createNewMemberInvitation(Number(id), 7);
+        message.success('Код приглашения создан!');
+        
+      } else {
+        // для существующего:
+        // Валидация формы
+        if (!inviteFormData.first_name || !inviteFormData.last_name || !inviteFormData.birth_date) {
+          message.warning('Пожалуйста, заполните обязательные поля (Имя, Фамилия, Дата рождения)');
+          setIsCreatingInvite(false);
+          return;
+        }
+        
+        const birthDate = new Date(inviteFormData.birth_date).toISOString();
+        
+        // Создаем карточку родственника
+        const memberResponse = await familyAPI.createMember(Number(id), {
+          first_name: inviteFormData.first_name,
+          last_name: inviteFormData.last_name,
+          patronymic: inviteFormData.patronymic || undefined,
+          birth_date: birthDate,
+          gender: inviteFormData.gender,
+          phone: inviteFormData.phone || undefined,
+          workplace: inviteFormData.workplace || undefined,
+          residence: inviteFormData.residence || undefined,
+          is_admin: false,
         } as any);
-      
-      const newMemberId = memberResponse.data.id;
-      message.success('Карточка создана!');
-      
-      // Создаем приглашение для этой карточки
-      const invitationResponse = await invitationAPI.createClaimMemberInvitation(
-        Number(id), 
-        newMemberId,
-        7
-      );
+        
+        message.success('Карточка создана!');
+        invitationResponse = await invitationAPI.createClaimMemberInvitation(
+          Number(id), 
+          memberResponse.data.id,
+          7
+        );
+        message.success('Код приглашения создан!');
+        const membersResponse = await familyAPI.getFamilyMembers(Number(id));
+        setMembers(membersResponse.data);
+      }
       
       setInviteCode(invitationResponse.data.code);
-      message.success('Код приглашения создан!');
       
-      // Обновляем список членов семьи
-      const membersResponse = await familyAPI.getFamilyMembers(Number(id));
-      setMembers(membersResponse.data);
-      
-      // Обновляем список приглашений
       const invitationsResponse = await invitationAPI.getFamilyInvitations(Number(id));
       const activeInvitations = filterActiveInvitations(invitationsResponse.data);
       setInvitations(activeInvitations);
       
     } catch (error: any) {
       console.error('Ошибка:', error);
-      message.error(error.response?.data?.detail || 'Не удалось создать приглашение');
+      const errorDetail = error.response?.data?.detail;
+      if (errorDetail?.includes('уже существует')) {
+        message.error('Этот пользователь уже является членом семьи');
+      } else if (errorDetail?.includes('лимит')) {
+        message.error('Достигнут лимит приглашений');
+      } else {
+        message.error(errorDetail || 'Не удалось создать приглашение');
+      }
     } finally {
       setIsCreatingInvite(false);
     }
@@ -243,16 +259,10 @@ const FamilyPage: React.FC = () => {
     try {
       await familyAPI.transferAdmin(Number(id), targetMemberId);
       message.success(`Права администратора переданы "${memberName}"`);
-      
-      // Обновляем данные о семье
       const membersResponse = await familyAPI.getFamilyMembers(Number(id));
       setMembers(membersResponse.data);
-      
-      // Обновляем статус текущего пользователя
       const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
       setIsAdmin(currentMember?.is_admin || false);
-      
-      // Если текущий пользователь больше не админ, обновляем список приглашений
       if (!currentMember?.is_admin) {
         setInvitations([]);
       }
@@ -360,7 +370,7 @@ const FamilyPage: React.FC = () => {
             {new Date(family.created_at).toLocaleDateString()}
           </Descriptions.Item>
           <Descriptions.Item label="Ваша роль">
-            {isAdmin ? '👑 Администратор' : '👤 Участник'}
+            {isAdmin ? 'Администратор' : 'Участник'}
           </Descriptions.Item>
         </Descriptions>
         
@@ -386,7 +396,7 @@ const FamilyPage: React.FC = () => {
                     <span style={{ color: '#666', fontSize: '12px' }}>Это вы</span>
                   )}
                   
-                  {/* Кнопка "Сделать администратором" - только для текущего админа и для обычных участников */}
+                  {/* Кнопка "Сделать администратором" только для текущего админа и для обычных участников */}
                   {isAdmin && !member.is_admin && member.user_id !== null && (
                     <Button 
                       size="small" 
@@ -398,7 +408,7 @@ const FamilyPage: React.FC = () => {
                     </Button>
                   )}
                   
-                  {/* Кнопка удаления - только для администратора и не для себя */}
+                  {/* Кнопка удаления только для администратора и не для себя */}
                   {isAdmin && member.user_id !== Number(user?.id) && (
                     <Button 
                       size="small" 
@@ -460,76 +470,124 @@ const FamilyPage: React.FC = () => {
       >
         {!inviteCode ? (
           <div>
-            <p>Создайте карточку для нового участника:</p>
-            <Form layout="vertical">
-              <Form.Item label="Имя" required>
-                <Input 
-                  value={inviteFormData.first_name}
-                  onChange={(e) => setInviteFormData({...inviteFormData, first_name: e.target.value})}
-                  placeholder="Введите имя"
-                />
-              </Form.Item>
-              <Form.Item label="Фамилия" required>
-                <Input 
-                  value={inviteFormData.last_name}
-                  onChange={(e) => setInviteFormData({...inviteFormData, last_name: e.target.value})}
-                  placeholder="Введите фамилию"
-                />
-              </Form.Item>
-              <Form.Item label="Отчество">
-                <Input 
-                  value={inviteFormData.patronymic}
-                  onChange={(e) => setInviteFormData({...inviteFormData, patronymic: e.target.value})}
-                  placeholder="Введите отчество (необязательно)"
-                />
-              </Form.Item>
-              <Form.Item label="Дата рождения" required>
-                <Input 
-                  type="date"
-                  value={inviteFormData.birth_date}
-                  onChange={(e) => setInviteFormData({...inviteFormData, birth_date: e.target.value})}
-                />
-              </Form.Item>
-              <Form.Item label="Пол" required>
-                <Select 
-                    value={inviteFormData.gender}
-                    onChange={(value) => setInviteFormData({...inviteFormData, gender: value})}
-                    placeholder="Выберите пол"
-                >
-                    <Select.Option value="male">Мужской</Select.Option>
-                    <Select.Option value="female">Женский</Select.Option>
-                </Select>
-                </Form.Item>
-              <Form.Item label="Телефон">
-                <Input 
-                  value={inviteFormData.phone}
-                  onChange={(e) => setInviteFormData({...inviteFormData, phone: e.target.value})}
-                  placeholder="+7-XXX-XXX-XX-XX (необязательно)"
-                />
-              </Form.Item>
-              <Form.Item label="Место работы">
-                <Input 
-                  value={inviteFormData.workplace}
-                  onChange={(e) => setInviteFormData({...inviteFormData, workplace: e.target.value})}
-                  placeholder="Необязательно"
-                />
-              </Form.Item>
-              <Form.Item label="Место жительства">
-                <Input 
-                  value={inviteFormData.residence}
-                  onChange={(e) => setInviteFormData({...inviteFormData, residence: e.target.value})}
-                  placeholder="Необязательно"
-                />
-              </Form.Item>
-              <Button 
-                type="primary" 
-                onClick={handleCreateInvitationWithMember}
-                loading={isCreatingInvite}
-                style={{ width: '100%', background: '#7b68ee' }}
+            {/*переключатель типа приглашения*/}
+            <Form.Item label="Тип приглашения" required style={{ marginBottom: '16px' }}>
+              <Radio.Group 
+                value={invitationType} 
+                onChange={(e) => {
+                  setInvitationType(e.target.value)
+                  if (e.target.value === 'new') {
+                    setInviteFormData({
+                      first_name: '',
+                      last_name: '',
+                      patronymic: '',
+                      birth_date: '',
+                      gender: 'male',
+                      phone: '',
+                      workplace: '',
+                      residence: '',
+                    });
+                  }
+                }}
               >
-                Создать код приглашения
-              </Button>
-            </Form>
+                <Radio value="new">
+                  Без создания карточки
+                </Radio>
+                <Radio value="claim">
+                  С созданием карточки
+                </Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            {/*форма для существующего*/}
+            {invitationType === 'claim' && (
+              <>
+                <p>Создайте карточку для нового участника:</p>
+                <Form layout="vertical">
+                  <Form.Item label="Имя" required>
+                    <Input 
+                      value={inviteFormData.first_name}
+                      onChange={(e) => setInviteFormData({...inviteFormData, first_name: e.target.value})}
+                      placeholder="Введите имя"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Фамилия" required>
+                    <Input 
+                      value={inviteFormData.last_name}
+                      onChange={(e) => setInviteFormData({...inviteFormData, last_name: e.target.value})}
+                      placeholder="Введите фамилию"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Отчество">
+                    <Input 
+                      value={inviteFormData.patronymic}
+                      onChange={(e) => setInviteFormData({...inviteFormData, patronymic: e.target.value})}
+                      placeholder="Введите отчество (необязательно)"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Дата рождения" required>
+                    <Input 
+                      type="date"
+                      value={inviteFormData.birth_date}
+                      onChange={(e) => setInviteFormData({...inviteFormData, birth_date: e.target.value})}
+                    />
+                  </Form.Item>
+                  <Form.Item label="Пол" required>
+                    <Select 
+                      value={inviteFormData.gender}
+                      onChange={(value) => setInviteFormData({...inviteFormData, gender: value})}
+                      placeholder="Выберите пол"
+                    >
+                      <Select.Option value="male">Мужской</Select.Option>
+                      <Select.Option value="female">Женский</Select.Option>
+                    </Select>
+                  </Form.Item>
+                  <Form.Item label="Телефон">
+                    <Input 
+                      value={inviteFormData.phone}
+                      onChange={(e) => setInviteFormData({...inviteFormData, phone: e.target.value})}
+                      placeholder="+7-XXX-XXX-XX-XX (необязательно)"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Место работы">
+                    <Input 
+                      value={inviteFormData.workplace}
+                      onChange={(e) => setInviteFormData({...inviteFormData, workplace: e.target.value})}
+                      placeholder="Необязательно"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Место жительства">
+                    <Input 
+                      value={inviteFormData.residence}
+                      onChange={(e) => setInviteFormData({...inviteFormData, residence: e.target.value})}
+                      placeholder="Необязательно"
+                    />
+                  </Form.Item>
+                </Form>
+              </>
+            )}
+
+            {/*информация для нового пользователя*/}
+            {invitationType === 'new' && (
+              <div style={{ 
+                background: '#f0f5ff', 
+                padding: '16px', 
+                borderRadius: '8px',
+                marginBottom: '20px'
+              }}>
+                <p style={{ margin: '8px 0 0', fontSize: '14px', color: '#666' }}>
+                  Пользователь сам внесет свои данные
+                </p>
+              </div>
+            )}
+            <Button 
+              type="primary" 
+              onClick={handleCreateInvitation}
+              loading={isCreatingInvite}
+              style={{ width: '100%', background: '#7b68ee', marginTop: '16px' }}
+            >
+              Создать код приглашения
+            </Button>
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '20px' }}>

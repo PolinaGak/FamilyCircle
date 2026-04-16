@@ -14,6 +14,16 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface UpdateProfileData {
+  name: string;
+}
+
+export interface ChangePasswordData {
+  current_password: string;
+  new_password: string;
+}
+
+
 export const authAPI = {
   login: (email: string, password: string) =>
     apiClient.post<LoginResponse>('/auth/login', 
@@ -36,6 +46,12 @@ export const authAPI = {
 
   getMe: () =>
     apiClient.get<User>('/auth/me'),
+
+  updateProfile: (data: UpdateProfileData) =>
+  apiClient.put<User>('/auth/me', data),
+
+  changePassword: (data: ChangePasswordData) =>
+    apiClient.post('/auth/change-password', data),
 
   //обновление токена
   refresh: () =>

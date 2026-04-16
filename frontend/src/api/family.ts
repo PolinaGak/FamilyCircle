@@ -83,6 +83,17 @@ export const familyAPI = {
 
   updateFamily: (familyId: number, name: string) =>
   apiClient.put<Family>(`/family/${familyId}`, { name }),
-}
 
-console.log('familyAPI.updateFamily:', familyAPI.updateFamily);
+  updateMember: (memberId: number, data: {
+  first_name: string;
+  last_name: string;
+  patronymic?: string;
+  gender: 'male' | 'female';
+  birth_date: string;
+  death_date?: string;
+  phone?: string;
+  workplace?: string;
+  residence?: string;
+  is_active?: boolean;
+}) => apiClient.put(`/family/member/${memberId}`, data),
+}
