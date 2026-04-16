@@ -1,6 +1,7 @@
 from celery import shared_task
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
+from backend.app.core.email_utils import email_service
 import logging
 
 from backend.app.database import SessionLocal
@@ -95,12 +96,14 @@ def send_event_reminders():
             for participant in participants:
                 if participant.user and participant.user.email:
                     try:
-                        event_notification_service.send_event_reminder(
-                            db, event, participant.user
+                        email_service.send_email(
+                            to_email=participant.user.email,
+                            subject=f"Напоминание: {event.title}",
+                            html_content=f"<p>Событие {event.title} начнется через 24 часа</p>"
                         )
                         sent_count += 1
                     except Exception as e:
-                        logger.error(f"Failed to send reminder to {participant.user_id}: {e}")
+                        logger.error(f"Failed to send reminder: {e}")
 
         logger.info(f"Отправлено напоминаний о событиях: {sent_count}")
         return f"Sent {sent_count} reminders"

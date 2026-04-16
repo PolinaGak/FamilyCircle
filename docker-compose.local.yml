@@ -1,0 +1,127 @@
+services:
+  db:
+    container_name: postgres_family_circle_local
+    image: postgres:15-alpine
+    env_file:
+      - .env
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-family_circle}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-family_circle}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - family_network_local
+
+  migrate:
+    build: ./backend
+    env_file:
+      - .env
+    command: >
+      sh -c "sleep 5 && alembic -c backend/alembic.ini upgrade head"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db/${POSTGRES_DB:-family_circle}
+    networks:
+      - family_network_local
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - family_network_local
+
+  backend:
+    build: ./backend
+    container_name: family_circle_backend_local
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+      - /app/__pycache__
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db/${POSTGRES_DB:-family_circle}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DEBUG=1
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - family_network_local
+
+  frontend:
+    build: ./frontend
+    container_name: family_circle_frontend_local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - family_network_local
+    stdin_open: true
+    tty: true
+
+  celery_worker:
+    build: ./backend
+    command: celery -A backend.app.core.celery worker --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db/${POSTGRES_DB:-family_circle}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    networks:
+      - family_network_local
+
+  celery_beat:
+    build: ./backend
+    command: celery -A backend.app.core.celery beat --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    networks:
+      - family_network_local
+
+volumes:
+  postgres_data_local:
+
+networks:
+  family_network_local:
+    driver: bridge

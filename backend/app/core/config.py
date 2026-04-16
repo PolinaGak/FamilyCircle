@@ -8,6 +8,7 @@ load_dotenv()
 class Settings(BaseSettings):
 
     DEBUG: bool = False
+    SEND_REAL_EMAILS: bool = True
 
     # Database settings
     POSTGRES_USER: str
@@ -64,7 +65,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = False
-        env_file = ".env"
+        env_file = ".env.prod"
         extra = "ignore"
 
 
