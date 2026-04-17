@@ -83,7 +83,7 @@ async def claim_invitation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
     family = family_crud.get_family_by_id(db, member.family_id)
-    member.id = current_user.id
+    #member.id = current_user.id
 
     requires_completion = not all([
         member.first_name and member.first_name != "Новый",
