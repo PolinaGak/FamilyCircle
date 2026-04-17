@@ -32,6 +32,15 @@ export const invitationAPI = {
       invitation_type: 'claim_member',
     }),
   
+  // Создать приглашение для нового пользователя
+  createNewMemberInvitation: (familyId: number, expiresInDays: number = 7) =>
+    apiClient.post<Invitation>('/invitation/create/new-member', {
+      family_id: familyId,
+      expires_in_days: expiresInDays,
+      invitation_type: 'new_member',
+    }),
+
+
   //Активировать приглашение
   claimInvitation: (code: string) =>
     apiClient.post<ClaimInvitationResponse>('/invitation/claim', { code }),

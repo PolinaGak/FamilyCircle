@@ -22,13 +22,21 @@ const JoinFamilyPage: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await invitationAPI.claimInvitation(code.trim());
-      
+
       if (response.data.success) {
         message.success(`Вы присоединились к семье "${response.data.family_name}"!`);
-        await loadUserFamilies(); // Обновляем список семей
-        navigate('/dashboard');
-      } else {
-        message.error(response.data.message || 'Не удалось присоединиться');
+        await loadUserFamilies();
+        
+        if (response.data.member_id) {
+          localStorage.setItem('pendingMemberId', String(response.data.member_id));
+          
+        }
+        
+        if (response.data.requires_profile_completion) {
+          navigate('/edit-profile');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (error: any) {
       console.error('Ошибка присоединения:', error);

@@ -11,11 +11,9 @@ const { Content, Sider } = Layout;
 const MainLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Header - он будет сверху */}
       <Header />
       
       <Layout>
-        {/* Sidebar теперь внутри Sider */}
         <Sider 
           width={250}
           style={{
