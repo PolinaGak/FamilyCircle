@@ -1,7 +1,4 @@
-# app/services/album_cleanup.py
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
-from typing import List
 import logging
 
 from backend.app.models.album import Album
@@ -25,11 +22,9 @@ class AlbumCleanupService:
 
         for album in expired_albums:
             try:
-                # Отправляем уведомление о удалении если ещё не отправлено
                 if not album.deletion_notified_at:
                     AlbumCleanupService._send_deletion_notification(album)
 
-                # Жёсткое удаление
                 album_crud.delete_album(db, album.id, permanent=True)
                 deleted_count += 1
                 logger.info(f"Истёкший альбом {album.id} удалён")
@@ -62,7 +57,6 @@ class AlbumCleanupService:
     def _send_deletion_notification(album: Album) -> bool:
         """Отправить email уведомление о скором удалении альбома"""
         try:
-            # Собираем email всех участников
             member_emails = []
             for member in album.members:
                 if member.user and member.user.email:
@@ -109,7 +103,6 @@ class AlbumCleanupService:
             </html>
             """
 
-            # Отправляем всем участникам
             for email in member_emails:
                 email_service.send_email(email, subject, html_content)
 
@@ -121,5 +114,4 @@ class AlbumCleanupService:
             return False
 
 
-# Экземпляр для использования
 album_cleanup_service = AlbumCleanupService()

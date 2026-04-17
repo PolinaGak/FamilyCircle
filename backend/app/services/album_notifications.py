@@ -1,5 +1,3 @@
-# app/services/album_notifications.py
-from sqlalchemy.orm import Session
 from typing import List
 import logging
 
@@ -18,7 +16,6 @@ class AlbumNotificationService:
     def notify_new_album(album: Album, creator: User):
         """Уведомить участников семьи о создании нового альбома"""
         try:
-            # Получаем членов семьи кроме создателя
             from backend.app.crud.family import family_crud
 
             family_members = family_crud.get_family_members(album.family_id)
@@ -75,7 +72,6 @@ class AlbumNotificationService:
     def notify_new_photos(album: Album, photos: List[Photo], uploader: User):
         """Уведомить участников альбома о новых фото"""
         try:
-            # Получаем участников альбома кроме загрузившего
             recipient_emails = []
             for member in album.members:
                 if member.user and member.user.email and member.user.id != uploader.id:

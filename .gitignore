@@ -17,11 +17,11 @@ build/
 dist/
 
 # Misc
-.env.local
+.env
 .env.development.local
 .env.test.local
 .env.production.local
-.env
+.env.prod
 
 npm-debug.log*
 yarn-debug.log*
@@ -49,7 +49,7 @@ frontend/build/
 
 # Backend
 backend/__pycache__/
-.env
+.env.prod
 backend/.venv/
 backend/venv/
 backend/*.pyc

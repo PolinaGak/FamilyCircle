@@ -1,35 +1,25 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.app.routers import auth, family, invitation, chat, event, album, photo, tree
-from backend.app.core.celery import celery_app  # Импорт для регистрации задач
+from backend.app.core.celery import celery_app
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifespan контекст для запуска/остановки приложения.
-    Заменяет устаревающие @app.on_event("startup"/"shutdown")
-    """
-    # Startup
     logger.info("🚀 Family Circle API starting up...")
-
-    # Проверка подключения к Redis (опционально, но полезно)
     try:
         celery_app.broker_connection().ensure_connection(max_retries=2)
         logger.info("✅ Celery broker (Redis) connected")
     except Exception as e:
         logger.warning(f"⚠️  Celery broker not available: {e}")
-        logger.warning("⚠️  Background tasks will not work until Redis is available")
-
     yield
-
-    # Shutdown
     logger.info("👋 Family Circle API shutting down...")
 
 
@@ -39,19 +29,30 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan,  # Добавляем lifespan
+    lifespan=lifespan,
     swagger_ui_parameters={
         "persistAuthorization": True,
         "displayRequestDuration": True,
     }
 )
 
-# CORS middleware (исправлен пробел в конце URL)
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+@app.exception_handler(429)
+async def rate_limit_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost",
         "http://localhost:3000",
-        "http://127.0.0.1:3000",  # убран пробел в конце!
+        "http://111.88.144.235",
     ],
     allow_credentials=True,
     allow_methods=["*"],

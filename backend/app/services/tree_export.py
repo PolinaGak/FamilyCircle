@@ -28,18 +28,14 @@ class TreeExportService:
         if not family:
             raise ValueError("Семья не найдена")
 
-        # Получаем плоское дерево
         tree_data = tree_crud.build_tree(
             db, family_id, current_user_id, root_member_id, include_inactive, max_depth=15
         )
 
-        # Преобразуем в иерархическую структуру по поколениям
         generations = TreeExportService._organize_by_generations(tree_data)
 
-        # Получаем статистику
         stats = TreeExportService._calculate_stats(tree_data)
 
-        # Формируем данные для PDF
         pdf_data = {
             "meta": {
                 "family_name": family.name,
@@ -53,8 +49,8 @@ class TreeExportService:
             },
             "statistics": stats,
             "generations": generations,
-            "members_flat": tree_data["nodes"],  # Для поиска/индексации
-            "relationships": tree_data["edges"]  # Для отрисовки связей
+            "members_flat": tree_data["nodes"],
+            "relationships": tree_data["edges"]
         }
 
         return pdf_data
@@ -68,7 +64,6 @@ class TreeExportService:
         nodes_by_id = {n["id"]: n for n in tree_data["nodes"]}
         edges = tree_data["edges"]
 
-        # Строим граф родитель-потомок
         parent_to_children = {}
         child_to_parents = {}
 
@@ -78,7 +73,6 @@ class TreeExportService:
             to_id = edge["to"]
 
             if rel_type in ["son", "daughter"]:
-                # from - родитель, to - ребенок
                 if from_id not in parent_to_children:
                     parent_to_children[from_id] = []
                 parent_to_children[from_id].append(to_id)
@@ -87,7 +81,6 @@ class TreeExportService:
                     child_to_parents[to_id] = []
                 child_to_parents[to_id].append(from_id)
 
-        # Определяем поколения относительно корня
         generations_map = {}
         root_id = tree_data["root_id"]
 
@@ -97,7 +90,6 @@ class TreeExportService:
                 root_id, 0, parent_to_children, child_to_parents, generations_map, set()
             )
 
-        # Группируем по поколениям
         gen_groups = {}
         for member_id, gen in generations_map.items():
             if gen not in gen_groups:
@@ -106,8 +98,7 @@ class TreeExportService:
             if member:
                 gen_groups[gen].append(member)
 
-        # Формируем отсортированный список поколений
-        sorted_gens = sorted(gen_groups.keys(), reverse=True)  # От старших к младшим
+        sorted_gens = sorted(gen_groups.keys(), reverse=True)
         result = []
         for gen_num in sorted_gens:
             result.append({
@@ -135,7 +126,6 @@ class TreeExportService:
         while queue:
             current_id, current_gen = queue.popleft()
 
-            # Дети - следующее поколение (+1)
             if current_id in parent_to_children:
                 for child_id in parent_to_children[current_id]:
                     if child_id not in visited:
@@ -143,7 +133,6 @@ class TreeExportService:
                         visited.add(child_id)
                         queue.append((child_id, current_gen + 1))
 
-            # Родители - предыдущее поколение (-1)
             if current_id in child_to_parents:
                 for parent_id in child_to_parents[current_id]:
                     if parent_id not in visited:
@@ -179,7 +168,6 @@ class TreeExportService:
             g = n.get("gender") or "unknown"
             by_gender[g] = by_gender.get(g, 0) + 1
 
-        # Находим самого старшего и младшего
         dates = [(n["id"], n.get("birth_date")) for n in nodes if n.get("birth_date")]
         oldest = min(dates, key=lambda x: x[1]) if dates else None
         youngest = max(dates, key=lambda x: x[1]) if dates else None
@@ -217,7 +205,6 @@ class TreeExportService:
             f"1 NAME {family.name}",
         ]
 
-        # Добавляем членов как INDI
         for member in members:
             indi_id = f"@I{member.id}@"
             lines.append(f"0 {indi_id} INDI")
@@ -240,7 +227,6 @@ class TreeExportService:
                 lines.append(f"1 DEAT")
                 lines.append(f"2 DATE {member.death_date.strftime('%d %b %Y').upper()}")
 
-            # Добавляем связи с семьей
             lines.append(f"1 FAMS @F1@")
 
         lines.append("0 TRLR")

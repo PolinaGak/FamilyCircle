@@ -52,11 +52,9 @@ def check_tree_edit_access(
     Проверить права на редактирование дерева.
     Редактировать может: админ семьи или владелец карточки (если указан member_id).
     """
-    # Админ может всё
     if family_crud.is_family_admin(db, current_user.id, family_id):
         return current_user
 
-    # Если указан member_id, проверяем что это своя карточка
     if member_id:
         from backend.app.crud.family import family_crud as fc
         member = fc.get_member_by_id(db, member_id)

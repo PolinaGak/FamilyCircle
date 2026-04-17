@@ -4,11 +4,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from backend.app.database import get_db
-from backend.app.dependencies.auth import get_current_active_user
 from backend.app.dependencies.family_access import (
-    check_family_access,
-    check_family_admin,
-    check_tree_edit_access
+    check_family_access
 )
 from backend.app.crud.tree import tree_crud
 from backend.app.crud.family import family_crud
@@ -33,7 +30,7 @@ async def get_family_tree(
         include_inactive: bool = Query(False, description="Показывать неактивных участников"),
         max_depth: int = Query(10, ge=1, le=20, description="Глубина дерева"),
         db: Session = Depends(get_db),
-        current_user: User = Depends(check_family_access)  # Используем зависимость
+        current_user: User = Depends(check_family_access)
 ):
     """
     Получить полное семейное дерево или поддерево от выбранного корня.

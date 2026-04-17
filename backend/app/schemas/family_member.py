@@ -75,7 +75,6 @@ class SiblingCreate(BaseModel):
     is_admin: bool = Field(False, description="Является ли администратором")
     user_id: Optional[int] = Field(None, description="ID пользователя, если зарегистрирован")
 
-    # Родители (опционально, но рекомендуется указать хотя бы одного)
     mother_id: Optional[int] = Field(None, description="ID матери в семье (опционально)")
     father_id: Optional[int] = Field(None, description="ID отца в семье (опционально)")
 
@@ -88,8 +87,8 @@ class SiblingCreate(BaseModel):
                 "patronymic": "Сергеевич",
                 "gender": "male",
                 "birth_date": "1992-05-15T00:00:00",
-                "mother_id": 5,  # ID существующей матери в семье
-                "father_id": 6  # ID существующего отца в семье
+                "mother_id": 5,
+                "father_id": 6
             }
         }
     )
@@ -107,10 +106,8 @@ class ParentCreate(BaseModel):
     workplace: Optional[str] = None
     residence: Optional[str] = None
 
-    # Главное отличие - список детей, а не один
     children_ids: List[int] = Field(..., min_length=1, description="ID детей, для которых создается родитель")
 
-    # Опционально: можно сразу привязать к супругу/супруге, если известен
     spouse_id: Optional[int] = Field(None, description="ID супруга/супруги (если уже есть в древе)")
 
     @field_validator('children_ids')
@@ -128,8 +125,8 @@ class ParentCreate(BaseModel):
                 "patronymic": "Петровна",
                 "gender": "female",
                 "birth_date": "1970-05-15T00:00:00",
-                "children_ids": [1, 2, 3],  # Выбрали нескольких детей
-                "spouse_id": 5  # Опционально: привязка к отцу, если он есть
+                "children_ids": [1, 2, 3],
+                "spouse_id": 5
             }
         }
     )
