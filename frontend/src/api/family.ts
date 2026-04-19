@@ -46,7 +46,7 @@ export const familyAPI = {
   getMyFamilies: () =>
     apiClient.get<Family[]>('/family/my'),
   
-  //Получить детали конкретной семьи
+  //Получить детали семьи
   getFamilyDetail: (familyId: number) =>
     apiClient.get<Family>(`/family/${familyId}`),
   

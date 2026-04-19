@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 import io
-
+from urllib.parse import quote
 from backend.app.database import get_db
 from backend.app.dependencies.auth import get_current_active_user
 from backend.app.crud import photo_crud, album_crud
@@ -72,12 +72,13 @@ async def get_photo_file(
             detail="Файл не найден на диске"
         )
 
+    encoded_filename = quote(photo.original_filename or 'photo')
 
     return StreamingResponse(
         io.BytesIO(file_content),
         media_type=photo.mime_type,
         headers={
-            "Content-Disposition": f'inline; filename="{photo.original_filename}"',
+            "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
             "Cache-Control": "public, max-age=86400"
         }
     )

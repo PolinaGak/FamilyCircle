@@ -14,8 +14,10 @@ import FamilyPage from './pages/FamilyPage';
 import JoinFamilyPage from './pages/JoinFamilyPage';
 import SettingsPage from './pages/SettingsPage';
 import EditProfilePage from './pages/EditProfilePage';
-
+import GalleryPage from './pages/GalleryPage';
+import AlbumPage from './pages/AlbumPage';
 import './App.css';
+
 
 function App() {
   return (
@@ -38,9 +40,10 @@ function App() {
           <Route path="/join-family" element={<JoinFamilyPage />} />
           <Route path="/tree" element={<div>Семейное древо</div>} />
           <Route path="/chat" element={<div>Чат</div>} />
-          <Route path="/gallery" element={<div>Галерея</div>} />
+          <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/calendar" element={<div>Календарь</div>} />
           <Route path="/edit-profile" element={<EditProfilePage />} />
+          <Route path="/album/:albumId" element={<AlbumPage />} />
         </Route>
 
         {/* Резервный маршрут */}
