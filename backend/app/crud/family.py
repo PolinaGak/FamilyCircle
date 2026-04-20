@@ -1,10 +1,9 @@
+import os
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session, joinedload
-import os
 import shutil
 
-
-from backend.app.models import RelationshipType, AlbumMember, Photo, Album
+from backend.app.models import RelationshipType, Album, Photo, AlbumMember
 from backend.app.models import Relationship
 from backend.app.models.family import Family
 from backend.app.models.family_member import FamilyMember
@@ -145,68 +144,53 @@ class FamilyCRUD:
         db.refresh(family)
         return family
 
-    import os
-    import shutil
-    import logging
-    from sqlalchemy.orm import Session
+    @staticmethod
+    def delete_family(db: Session, family_id: int) -> bool:
+        """
+        Полностью удаляет семью и все связанные альбомы с фотографиями.
+        """
+        family = db.query(Family).filter(Family.id == family_id).first()
+        if not family:
+            return False
 
-    from backend.app.models.family import Family
-    from backend.app.models.album import Album
-    from backend.app.models.photo import Photo
-    from backend.app.models.album_member import AlbumMember
-    from backend.app.crud.photo import photo_crud  # для пути UPLOAD_DIR
+        # 1. Находим все альбомы этой семьи
+        albums = db.query(Album).filter(Album.family_id == family_id).all()
 
-    logger = logging.getLogger(__name__)
-
-    class FamilyCRUD:
-        # ... другие методы ...
-
-        @staticmethod
-        def delete_family(db: Session, family_id: int) -> bool:
-            """
-            Полностью удаляет семью и все связанные альбомы с фотографиями.
-            """
-            family = db.query(Family).filter(Family.id == family_id).first()
-            if not family:
-                return False
-
-            # 1. Находим все альбомы этой семьи
-            albums = db.query(Album).filter(Album.family_id == family_id).all()
-
-            for album in albums:
-                # 2. Удаляем все фотографии альбома (записи и файлы)
-                photos = db.query(Photo).filter(Photo.album_id == album.id).all()
-                for photo in photos:
-                    try:
-                        if os.path.exists(photo.file_path):
-                            os.remove(photo.file_path)
-                    except Exception as e:
-                        logger.error(f"Ошибка удаления файла {photo.file_path}: {str(e)}")
-                    db.delete(photo)
-
-                # 3. Удаляем записи участников альбома
-                db.query(AlbumMember).filter(AlbumMember.album_id == album.id).delete()
-
-                from backend.app.crud import photo_crud
-                # 4. Удаляем директорию альбома
-                album_dir = photo_crud.UPLOAD_DIR / str(album.id)
+        for album in albums:
+            # 2. Удаляем все фотографии альбома (записи и файлы)
+            photos = db.query(Photo).filter(Photo.album_id == album.id).all()
+            for photo in photos:
                 try:
-                    if album_dir.exists():
-                        shutil.rmtree(album_dir)
+                    if os.path.exists(photo.file_path):
+                        os.remove(photo.file_path)
                 except Exception as e:
-                    logger.error(f"Ошибка удаления директории {album_dir}: {str(e)}")
+                    logger.error(f"Ошибка удаления файла {photo.file_path}: {str(e)}")
+                db.delete(photo)
 
-                # 5. Удаляем сам альбом
-                db.delete(album)
+            # 3. Удаляем записи участников альбома
+            db.query(AlbumMember).filter(AlbumMember.album_id == album.id).delete()
 
-            # 6. Удаляем семью
-            db.delete(family)
+            # 4. Удаляем директорию альбома
+            from backend.app.crud import photo_crud
 
-            # 7. Фиксируем все изменения одной транзакцией
-            db.commit()
+            album_dir = photo_crud.UPLOAD_DIR / str(album.id)
+            try:
+                if album_dir.exists():
+                    shutil.rmtree(album_dir)
+            except Exception as e:
+                logger.error(f"Ошибка удаления директории {album_dir}: {str(e)}")
 
-            logger.info(f"Семья {family_id} и все связанные альбомы успешно удалены")
-            return True
+            # 5. Удаляем сам альбом
+            db.delete(album)
+
+        # 6. Удаляем семью
+        db.delete(family)
+
+        # 7. Фиксируем все изменения одной транзакцией
+        db.commit()
+
+        logger.info(f"Семья {family_id} и все связанные альбомы успешно удалены")
+        return True
 
     def add_member(
             self,
