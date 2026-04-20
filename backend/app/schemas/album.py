@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from .photo import PhotoResponse
 
 
@@ -53,3 +53,13 @@ class AlbumDetailResponse(AlbumResponse):
 class AlbumListResponse(BaseModel):
     albums: List[AlbumResponse]
     total: int
+
+class AlbumViewerResponse(BaseModel):
+    user_id: int
+    email: str
+    name: str
+    role: Literal["admin", "member", "event_participant"]
+    source: Literal["album_member", "event"]
+
+    class Config:
+        from_attributes = True

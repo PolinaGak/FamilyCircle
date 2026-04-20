@@ -8,7 +8,7 @@ from backend.app.dependencies.auth import get_current_active_user
 from backend.app.crud import album_crud, photo_crud
 from backend.app.schemas.album import (
     AlbumCreate, AlbumUpdate, AlbumResponse, AlbumDetailResponse,
-    AlbumListResponse
+    AlbumListResponse, AlbumViewerResponse
 )
 from backend.app.schemas.album_member import (
     AlbumMemberAdd, AlbumAdminAdd,
@@ -230,6 +230,25 @@ async def remove_admin_rights(
             detail=str(e)
         )
 
+@router.get("/{album_id}/viewers", response_model=List[AlbumViewerResponse])
+async def get_album_viewers(
+    album_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Получить список всех пользователей, которые имеют доступ к альбому.
+    Включает явных участников и участников связанного события.
+    """
+    # Проверяем, что текущий пользователь сам имеет доступ к альбому
+    if not album_crud.can_view_album(db, current_user.id, album_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="У вас нет доступа к этому альбому"
+        )
+
+    viewers = album_crud.get_album_viewers(db, album_id)
+    return viewers
 
 @router.get("/{album_id}/admins", response_model=List[AlbumMemberResponse])
 async def list_album_admins(

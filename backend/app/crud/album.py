@@ -89,6 +89,61 @@ class AlbumCRUD:
         return query.filter(Album.expires_at > now).order_by(Album.created_at.desc()).all()
 
     @staticmethod
+    def get_album_viewers(db: Session, album_id: int) -> List[dict]:
+        """
+        Возвращает список всех пользователей, имеющих доступ к альбому.
+        Включает:
+        - явных участников альбома (AlbumMember)
+        - участников события, если альбом привязан к событию (EventParticipant)
+        """
+        from backend.app.models.user import User
+        from backend.app.models.event_participant import EventParticipant
+
+        album = AlbumCRUD.get_album_by_id(db, album_id)
+        if not album:
+            return []
+
+        viewers = {}
+
+        # 1. Явные участники альбома
+        members = db.query(AlbumMember, User).join(
+            User, AlbumMember.user_id == User.id
+        ).filter(
+            AlbumMember.album_id == album_id,
+            AlbumMember.status == InvitationStatus.accepted
+        ).all()
+
+        for member, user in members:
+            viewers[user.id] = {
+                "user_id": user.id,
+                "email": user.email,
+                "name": user.name,  # предполагаем, что в модели User есть поле name
+                "role": "admin" if (member.can_edit and member.can_delete) else "member",
+                "source": "album_member"
+            }
+
+        # 2. Участники события (если альбом привязан к событию)
+        if album.event_id:
+            event_participants = db.query(EventParticipant, User).join(
+                User, EventParticipant.user_id == User.id
+            ).filter(
+                EventParticipant.event_id == album.event_id,
+                EventParticipant.status == InvitationStatus.accepted
+            ).all()
+
+            for participant, user in event_participants:
+                if user.id not in viewers:
+                    viewers[user.id] = {
+                        "user_id": user.id,
+                        "email": user.email,
+                        "name": user.name,
+                        "role": "event_participant",
+                        "source": "event"
+                    }
+
+        return list(viewers.values())
+
+    @staticmethod
     def get_family_albums(db: Session, family_id: int, user_id: int) -> List[Album]:
         return AlbumCRUD.get_user_albums(db, user_id, family_id)
 
