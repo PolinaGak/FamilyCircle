@@ -8,6 +8,7 @@ export interface Photo {
   file_size: number;
   file_type: string;
   uploaded_at: string;
+  uploaded_by_user_id: number;
 }
 
 export interface PhotosResponse {

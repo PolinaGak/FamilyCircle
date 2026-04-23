@@ -8,7 +8,7 @@ import { albumAPI, Album } from '../api/album';
 const { Title, Text, Paragraph } = Typography;
 
 const GalleryPage: React.FC = () => {
-  const { families, currentFamily, setCurrentFamily, user } = useAuth();
+  const { families, currentFamily, setCurrentFamily, loadUserFamilies } = useAuth();
   const navigate = useNavigate();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,16 +16,32 @@ const GalleryPage: React.FC = () => {
   const [form] = Form.useForm();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedFamilyId, setSelectedFamilyId] = useState<number>(currentFamily?.id || 0);
+  const [isLoadingFamilies, setIsLoadingFamilies] = useState(true);
 
   useEffect(() => {
-    if (selectedFamilyId) {
-      loadAlbums(selectedFamilyId);
-    }
-  }, [selectedFamilyId]);
+    const loadData = async () => {
+      setIsLoadingFamilies(true);
+      if (families.length === 0) {
+        await loadUserFamilies();
+      }
+      if (families.length > 0 && !currentFamily) {
+        setCurrentFamily(families[0]);
+      }
+      setIsLoadingFamilies(false);
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
     if (currentFamily) {
       setSelectedFamilyId(currentFamily.id);
+    }
+  }, [currentFamily]);
+
+  // Загружаем альбомы при смене семьи
+  useEffect(() => {
+    if (currentFamily) {
+      loadAlbums(currentFamily.id);
     }
   }, [currentFamily]);
 
@@ -81,6 +97,15 @@ const GalleryPage: React.FC = () => {
     return `Истекает через ${days} дней`;
   };
 
+  // ========== НОВЫЕ УСЛОВИЯ ==========
+  if (isLoadingFamilies) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   if (families.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -89,6 +114,16 @@ const GalleryPage: React.FC = () => {
       </div>
     );
   }
+
+  if (!currentFamily) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Title level={4}>Выберите семью</Title>
+        <Text type="secondary">Пожалуйста, выберите семью из списка на главной странице</Text>
+      </div>
+    );
+  }
+  // ==================================
 
   return (
     <div style={{ padding: '24px' }}>
