@@ -47,7 +47,10 @@ const HomePage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  // Загружаем семьи при загрузке страницы
+  
+
+
+
   useEffect(() => {
     const loadData = async () => {
       await loadUserFamilies();

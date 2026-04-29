@@ -109,7 +109,12 @@ const EditProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={isLoading} size="large" block>
+            <Button type="primary" htmlType="submit" loading={isLoading} size="large" block
+              style={{
+                backgroundColor: '#7b68ee', 
+                borderColor: '#7b68ee',
+              }}
+            >
               Сохранить
             </Button>
           </Form.Item>

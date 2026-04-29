@@ -6,7 +6,7 @@ import { familyAPI, Family, FamilyMember} from '../api/family';
 import { invitationAPI, Invitation } from '../api/invitation';
 import { useAuth } from '../contexts/AuthContext';
 import { EditOutlined } from '@ant-design/icons';
-
+import AddFamilyMemberModal from '../components/AddFamilyMemberModal';
 const { Title } = Typography;
 const FamilyPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +21,7 @@ const FamilyPage: React.FC = () => {
   const [inviteCode, setInviteCode] = useState('');
   const [invitationType, setInvitationType] = useState<'new' | 'claim'>('new');
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [inviteFormData, setInviteFormData] = useState({
     first_name: '',
     last_name: '',
@@ -34,42 +35,43 @@ const FamilyPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFamilyName, setEditFamilyName] = useState('');
 
-  // Загружаем данные семьи
-  useEffect(() => {
-    const loadFamilyData = async () => {
-      if (!id) return;
-      
-      try {
-        const familyResponse = await familyAPI.getFamilyDetail(Number(id));
-        setFamily(familyResponse.data);
-        
-        const membersResponse = await familyAPI.getFamilyMembers(Number(id));
-        setMembers(membersResponse.data);
-        
-        const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
-        const adminStatus = currentMember?.is_admin || false;
-        setIsAdmin(adminStatus);
-        
-        if (adminStatus) {
-          try {
-            const invitationsResponse = await invitationAPI.getFamilyInvitations(Number(id));
-            const activeInvitations = filterActiveInvitations(invitationsResponse.data);
-            setInvitations(activeInvitations);
-          } catch (error) {
-            console.error('Ошибка загрузки приглашений:', error);
-          }
-        }
-        
-      } catch (error) {
-        console.error('Ошибка загрузки семьи:', error);
-        message.error('Не удалось загрузить информацию о семье');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadFamilyData = async () => {
+    if (!id) return;
     
+    try {
+      const familyResponse = await familyAPI.getFamilyDetail(Number(id));
+      setFamily(familyResponse.data);
+      
+      const membersResponse = await familyAPI.getFamilyMembers(Number(id));
+      setMembers(membersResponse.data);
+      
+      const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
+      const adminStatus = currentMember?.is_admin || false;
+      setIsAdmin(adminStatus);
+      
+      if (adminStatus) {
+        try {
+          const invitationsResponse = await invitationAPI.getFamilyInvitations(Number(id));
+          const activeInvitations = filterActiveInvitations(invitationsResponse.data);
+          setInvitations(activeInvitations);
+        } catch (error) {
+          console.error('Ошибка загрузки приглашений:', error);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Ошибка загрузки семьи:', error);
+      message.error('Не удалось загрузить информацию о семье');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+// 2. Затем используем её в useEffect
+  useEffect(() => {
     loadFamilyData();
   }, [id, user?.id]);
+  
 
   //создание карточки и приглашения
   const handleCreateInvitation = async () => {
@@ -138,6 +140,18 @@ const FamilyPage: React.FC = () => {
       }
     } finally {
       setIsCreatingInvite(false);
+    }
+  };
+
+
+
+  const handleApproveMember = async (memberId: number, memberName: string) => {
+    try {
+      await familyAPI.approveMember(memberId, true);
+      message.success(`Карточка "${memberName}" подтверждена`);
+      loadFamilyData(); 
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || 'Ошибка подтверждения');
     }
   };
 
@@ -330,23 +344,25 @@ const FamilyPage: React.FC = () => {
         )}
 
         {isAdmin && (
-          <>
-            <Button 
-              danger
-              onClick={handleDeleteFamily}
-            >
-              Удалить семью
-            </Button>
-            <Button 
-              type="primary" 
-              icon={<UserAddOutlined />}
+            <>
+              <Button danger onClick={handleDeleteFamily}>Удалить семью</Button>
+              <Button type="primary" 
+              icon={<UserAddOutlined />} 
               onClick={() => setIsInviteModalOpen(true)}
               style={{ background: '#7b68ee' }}
-            >
-              Пригласить
-            </Button>
-          </>
-        )}
+              >
+                Пригласить
+              </Button>
+            </>
+          )}
+          {/* Кнопка для всех членов семьи */}
+          <Button 
+            type="default" 
+            icon={<UserAddOutlined />}
+            onClick={() => setIsAddMemberModalOpen(true)}
+          >
+            Добавить члена семьи
+          </Button>
       </div>
       
       <Card>
@@ -385,15 +401,29 @@ const FamilyPage: React.FC = () => {
               background: '#f8f9fa'}}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontWeight: 'bold' }}>
-                    {member.last_name} {member.first_name} {member.patronymic || ''}
-                  </span>
-                  {member.is_admin && <Tag color="purple" style={{ marginLeft: '10px' }}>Админ</Tag>}
-                  {!member.user_id && <Tag color="orange" style={{ marginLeft: '10px' }}>Ожидает привязки</Tag>}
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  {member.user_id === Number(user?.id) && (
-                    <span style={{ color: '#666', fontSize: '12px' }}>Это вы</span>
+                   <span style={{ fontWeight: 'bold' }}>
+                      {member.last_name} {member.first_name} {member.patronymic || ''}
+                    </span>
+                    {member.is_admin && <Tag color="purple">Админ</Tag>}
+                    {!member.user_id && (
+                      member.approved ? (
+                        <Tag color="green">Без аккаунта</Tag>
+                      ) : (
+                        <Tag color="orange">Ожидает подтверждения админом</Tag>
+                      )
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {member.user_id === Number(user?.id) && <span style={{ color: '#666' }}>Это вы</span>}
+                    
+                  {isAdmin && !member.approved && !member.user_id && (
+                    <Button 
+                    size="small" type="primary" 
+                    onClick={() => handleApproveMember(member.id, `${member.first_name} ${member.last_name}`)}
+                    style={{ background: '#7b68ee' }}
+                    >
+                      Подтвердить
+                    </Button>
                   )}
                   
                   {/* Кнопка "Сделать администратором" только для текущего админа и для обычных участников */}
@@ -632,6 +662,15 @@ const FamilyPage: React.FC = () => {
         autoFocus
       />
     </Modal>
+
+    <AddFamilyMemberModal
+        open={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        familyId={Number(id)}
+        onSuccess={() => {
+          loadFamilyData();
+        }}
+      />
     </div>
   );
 };

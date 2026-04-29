@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import { Modal, Form, Input, Button, message, DatePicker, Select, Divider } from 'antd';
 import { familyAPI } from '../api/family';
+import { useAuth } from '../contexts/AuthContext';
+import dayjs from 'dayjs';
 
 interface CreateFamilyModalProps {
   isOpen: boolean;
@@ -8,122 +11,171 @@ interface CreateFamilyModalProps {
 }
 
 const CreateFamilyModal: React.FC<CreateFamilyModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [familyName, setFamilyName] = useState('');
+  const [form] = Form.useForm();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { user, loadUserFamilies } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (values: any) => {
     setIsLoading(true);
-
     try {
-      await familyAPI.create(familyName);
+      const familyResponse = await familyAPI.create(values.familyName);
+      const newFamilyId = familyResponse.data.id;
+      
+      const membersResponse = await familyAPI.getFamilyMembers(newFamilyId);
+      const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
+      
+      if (currentMember) {
+        await familyAPI.updateMember(currentMember.id, {
+          first_name: values.first_name,
+          last_name: values.last_name,
+          patronymic: values.patronymic || '',
+          gender: values.gender,
+          birth_date: values.birth_date.toISOString(),
+          phone: values.phone || '',
+          workplace: values.workplace || '',
+          residence: values.residence || '',
+          is_active: true,
+        });
+      }
+      
+      if (!values.birth_date || !dayjs(values.birth_date).isValid()) {
+        message.error('Пожалуйста, выберите корректную дату рождения');
+        return;
+      }
+
+      message.success(`Семья "${values.familyName}" успешно создана!`);
+      await loadUserFamilies(); 
+      form.resetFields();
       onSuccess();
       onClose();
-      setFamilyName('');
-    } catch (err: any) {
-      const errorDetail = err.response?.data?.detail;
+    } catch (error: any) {
+      console.error('Ошибка создания семьи:', error);
+      const errorDetail = error.response?.data?.detail;
       if (errorDetail?.includes('лимит')) {
-        setError('Вы не можете создать более 3 семей. Достигнут лимит.');
+        message.error('Вы не можете создать более 3 семей. Достигнут лимит.');
       } else {
-        setError(errorDetail || 'Ошибка создания семьи');
+        message.error(errorDetail || 'Не удалось создать семью');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '24px',
-        borderRadius: '12px',
-        width: '400px',
-        maxWidth: '90%'
-      }}>
-        <h2 style={{ marginTop: 0 }}>Создать новую семью</h2>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Название семьи</label>
-            <input
-              type="text"
-              value={familyName}
-              onChange={(e) => setFamilyName(e.target.value)}
-              placeholder="Например: Ивановы"
-              required
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px'
-              }}
-            />
-          </div>
-          {error && <div style={{ color: '#ff4d4f', marginBottom: '16px' }}>{error}</div>}
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              disabled={isLoading} 
-              style={{ 
-                padding: '8px 16px',
-                background: '#f5f5f5',
-                color: '#666',
-                border: '1px solid #d9d9d9',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#e8e8e8';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f5f5f5';
-              }}
-            >
-              Отмена
-            </button>
-            <button 
-              type="submit" 
-              disabled={isLoading} 
-              style={{ 
-                padding: '8px 16px',
-                background: '#7b68ee',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#5a4fd0';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#7b68ee';
-              }}
-            >
-              {isLoading ? 'Создание...' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      title="Создать новую семью"
+      open={isOpen}
+      onCancel={() => {
+        form.resetFields();
+        onClose();
+      }}
+      footer={null}
+      destroyOnClose
+      width={500}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+      >
+        <Form.Item
+          name="familyName"
+          label="Название семьи"
+          rules={[{ required: true, message: 'Введите название семьи' }]}
+        >
+          <Input placeholder="Например: Ивановы" size="large" />
+        </Form.Item>
+
+        <Divider orientation="left">Ваши данные</Divider>
+
+        <Form.Item
+          name="last_name"
+          label="Фамилия"
+          rules={[{ required: true, message: 'Введите фамилию' }]}
+        >
+          <Input placeholder="Иванов" size="large" />
+        </Form.Item>
+
+        <Form.Item
+          name="first_name"
+          label="Имя"
+          rules={[{ required: true, message: 'Введите имя' }]}
+        >
+          <Input placeholder="Иван" size="large" />
+        </Form.Item>
+
+        <Form.Item
+          name="patronymic"
+          label="Отчество"
+        >
+          <Input placeholder="Иванович" size="large" />
+        </Form.Item>
+
+        <Form.Item
+          name="birth_date"
+          label="Дата рождения"
+          rules={[
+            { required: true, message: 'Выберите дату рождения' },
+            { type: 'object', message: 'Пожалуйста, выберите корректную дату' }
+          ]}
+        >
+          <DatePicker 
+            style={{ width: '100%' }} 
+            size="large" 
+            placeholder="Выберите дату"
+            format="DD.MM.YYYY"
+            disabledDate={(current) => {
+              return current && current > dayjs().endOf('day');
+            }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="gender"
+          label="Пол"
+          rules={[{ required: true, message: 'Выберите пол' }]}
+        >
+          <Select size="large" placeholder="Выберите пол">
+            <Select.Option value="male">Мужской</Select.Option>
+            <Select.Option value="female">Женский</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="phone"
+          label="Телефон"
+        >
+          <Input placeholder="+7 (999) 123-45-67" size="large" />
+        </Form.Item>
+
+        <Form.Item
+          name="workplace"
+          label="Место работы"
+        >
+          <Input placeholder="ООО Ромашка" size="large" />
+        </Form.Item>
+
+        <Form.Item
+          name="residence"
+          label="Место жительства"
+        >
+          <Input placeholder="г. Москва" size="large" />
+        </Form.Item>
+
+        <Form.Item>
+          <Button 
+            type="primary" 
+            htmlType="submit" 
+            loading={isLoading}
+            size="large"
+            block
+            style={{ background: '#7b68ee' }}
+          >
+            {isLoading ? 'Создание...' : 'Создать семью'}
+          </Button>
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
 

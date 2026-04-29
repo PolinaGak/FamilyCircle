@@ -16,6 +16,7 @@ import SettingsPage from './pages/SettingsPage';
 import EditProfilePage from './pages/EditProfilePage';
 import GalleryPage from './pages/GalleryPage';
 import AlbumPage from './pages/AlbumPage';
+//import FamilyTreePage from './pages/FamilyTreePage';
 import './App.css';
 
 
@@ -38,7 +39,7 @@ function App() {
           <Route path="/family/:id" element={<FamilyPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/join-family" element={<JoinFamilyPage />} />
-          <Route path="/tree" element={<div>Семейное древо</div>} />
+          <Route path="/tree" element={<div>Семейное дерево</div>} />
           <Route path="/chat" element={<div>Чат</div>} />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/calendar" element={<div>Календарь</div>} />

@@ -32,6 +32,7 @@ export interface CreateMemberData {
   birth_date: string;
   gender: "male" | "female";
   phone?: string;
+  death_date?: string;
   workplace?: string;
   residence?: string;
   is_admin?: boolean;
@@ -71,6 +72,9 @@ export const familyAPI = {
 
   removeMember: (memberId: number) =>
   apiClient.delete(`/family/member/${memberId}`),
+
+  approveMember: (memberId: number, approved: boolean) =>
+  apiClient.post(`/family/member/${memberId}/approve`, { approved }),
 
   leaveFamily: (familyId: number) => 
     apiClient.post(`/family/${familyId}/leave`),
