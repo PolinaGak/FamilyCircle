@@ -21,7 +21,7 @@ const Sidebar: React.FC = () => {
     const path = location.pathname;
     if (path === '/') return '1';
     if (path.includes('tree')) return '2';
-    if (path.includes('chat')) return '3';
+    if (path.includes('chats')) return '3';
     if (path.includes('gallery')) return '4';
     if (path.includes('calendar')) return '5';
     if (path.includes('settings')) return '6';
@@ -46,7 +46,7 @@ const Sidebar: React.FC = () => {
       key: '3',
       icon: <MessageOutlined />,
       label: 'Чат',
-      onClick: () => navigate('/chat'),
+      onClick: () => navigate('/chats'),
     },
     {
       key: '4',
