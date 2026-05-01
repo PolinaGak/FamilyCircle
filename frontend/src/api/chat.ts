@@ -10,7 +10,7 @@ export interface ChatMember {
   user?: {
     id: number;
     name: string;
-    email: string;
+    email?: string;
   };
 }
 
@@ -60,7 +60,7 @@ export const chatAPI = {
   getById: (chatId: number) =>
     apiClient.get<ChatDetail>(`/chats/${chatId}`),
 
-  // Обновить чат (только админ)
+  // Обновить чат
   update: (chatId: number, data: ChatUpdate) =>
     apiClient.put<Chat>(`/chats/${chatId}`, data),
 
@@ -84,13 +84,6 @@ export const chatAPI = {
   removeMember: (chatId: number, userId: number) =>
     apiClient.delete(`/chats/${chatId}/members/${userId}`),
 
-  // Назначить администратора
-  addAdmin: (chatId: number, userId: number) =>
-    apiClient.post<ChatMember>(`/chats/${chatId}/admins`, { user_id: userId }),
-
-  // Снять права администратора
-  removeAdmin: (chatId: number, userId: number) =>
-    apiClient.delete(`/chats/${chatId}/admins/${userId}`),
 
   // Передать права администратора
   transferAdmin: (chatId: number, newAdminUserId: number) =>

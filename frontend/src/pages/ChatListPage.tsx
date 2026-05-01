@@ -179,20 +179,12 @@ const ChatListPage: React.FC = () => {
             <Input placeholder="Например: Общий чат" />
             </Form.Item>
 
-            <Form.Item
-            name="member_ids"
-            label="Пригласить участников (опционально)"
-            >
-            <Select
-                mode="multiple"
-                placeholder="Выберите участников"
-                options={[]} 
-                disabled
-            />
-            </Form.Item>
 
             <Form.Item>
-            <Button type="primary" htmlType="submit" loading={isCreating} block>
+            <Button type="primary" htmlType="submit" 
+            loading={isCreating} block
+            style={{ background: '#7b68ee' }}
+            >
                 Создать
             </Button>
             </Form.Item>

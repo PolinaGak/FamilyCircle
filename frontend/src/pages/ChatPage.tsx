@@ -43,7 +43,9 @@ const ChatPage: React.FC = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [membersCount, setMembersCount] = useState(0);
-
+  const [editChatName, setEditChatName] = useState('');
+  const [isMessageEditModalOpen, setIsMessageEditModalOpen] = useState(false);
+  const [isMessageEditing, setIsMessageEditing] = useState(false);
   useEffect(() => {
     if (id) {
       loadMessages();
@@ -177,7 +179,7 @@ const ChatPage: React.FC = () => {
         : msg
     ));
     
-    setIsEditModalOpen(false);
+    setIsMessageEditModalOpen(false);
     setSelectedMessage(null);
     setEditContent('');
   } catch (error: any) {
@@ -213,7 +215,11 @@ const loadMembers = async () => {
   try {
     const response = await chatAPI.getMembers(Number(id));
     const membersData = response.data;
-    
+    setMembersCount(membersData.length);
+    const currentMember = membersData.find(m => m.user_id === Number(user?.id));
+    if (currentMember) {
+      setIsAdmin(currentMember.is_admin);
+    }
     // Получаем всех членов семьи для подстановки имён
     if (currentFamily) {
       const familyMembers = await familyAPI.getFamilyMembers(currentFamily.id);
@@ -314,6 +320,69 @@ const handleLeaveChat = () => {
   });
 };
 
+  const handleTransferAdmin = async (newAdminUserId: number, userName: string) => {
+    Modal.confirm({
+      title: 'Передать права администратора',
+      content: `Вы уверены, что хотите передать права админа "${userName}"? Вы станете обычным участником.`,
+      okButtonProps: {
+          style: {
+            backgroundColor: '#7b68ee'
+            
+          }
+        },
+      okText: 'Передать',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          await chatAPI.transferAdmin(Number(id), newAdminUserId);
+          antdMessage.success(`Права администратора переданы "${userName}"`);
+          await loadChatInfo();
+          await loadMembers();
+        } catch (error: any) {
+          antdMessage.error(error.response?.data?.detail || 'Не удалось передать права');
+        }
+      },
+    });
+  };
+
+  const handleUpdateChat = async () => {
+    if (!editChatName.trim()) {
+      antdMessage.warning('Название чата не может быть пустым');
+      return;
+    }
+    
+    setIsEditing(true);
+    try {
+      await chatAPI.update(Number(id), { name: editChatName });
+      setChatName(editChatName);
+      antdMessage.success('Название чата обновлено');
+      setIsEditModalOpen(false);
+    } catch (error: any) {
+      antdMessage.error(error.response?.data?.detail || 'Не удалось обновить название');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Удаление чата
+  const handleDeleteChat = () => {
+    Modal.confirm({
+      title: 'Удалить чат',
+      content: 'Вы уверены, что хотите удалить этот чат? Все сообщения будут потеряны без возможности восстановления.',
+      okText: 'Удалить',
+      cancelText: 'Отмена',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await chatAPI.delete(Number(id));
+          antdMessage.success('Чат удален');
+          navigate('/chats');
+        } catch (error: any) {
+          antdMessage.error(error.response?.data?.detail || 'Не удалось удалить чат');
+        }
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -331,37 +400,43 @@ const handleLeaveChat = () => {
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
         alignItems: 'center',
-        gap: '16px'
+        justifyContent: 'space-between'
       }}>
-        <Button 
-          icon={<ArrowLeftOutlined />} 
-          onClick={() => navigate('/chats')}
-        >
-          Назад
-        </Button>
-        <Title level={4} style={{ margin: 0 }}>{chatName || `Чат ${id}`}</Title>
-        {isAdmin && <Text type="secondary" style={{ fontSize: 12 }}>(Администратор)</Text>}
-        {isAdmin && (
-        <Button 
-          type="text" 
-          icon={<TeamOutlined />} 
-          onClick={() => {
-            loadMembers();
-            setIsMembersModalOpen(true);
-          }}
-        >
-          Участники ({membersCount})
-        </Button>
-      )}
-      {!isAdmin && (
-        <Button 
-          danger
-          onClick={handleLeaveChat}
-        >
-          Покинуть чат
-        </Button>
-      )}
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/chats')}>
+            Назад
+          </Button>
+          <Title level={4} style={{ margin: 0 }}>{chatName || `Чат ${id}`}</Title>
+          {isAdmin && <Text type="secondary" style={{ fontSize: 12 }}>(Администратор)</Text>}
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {isAdmin && (
+            <>
+              <Button 
+                type="text" 
+                danger
+                icon={<DeleteOutlined />} 
+                onClick={handleDeleteChat}
+              />
+              <Button 
+                type="text" 
+                icon={<TeamOutlined />} 
+                onClick={() => {
+                  loadMembers();
+                  setIsMembersModalOpen(true);
+                }}
+              >
+                Участники ({membersCount})
+              </Button>
+            </>
+          )}
+          {!isAdmin && (
+            <Button danger onClick={handleLeaveChat}>
+              Покинуть чат
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Область сообщений */}
@@ -387,8 +462,8 @@ const handleLeaveChat = () => {
               </div>
               {group.messages.map((msg) => {
                 const myMessage = isMyMessage(msg);
-                const canEdit = myMessage;  // только свои сообщения можно редактировать
-                const canDelete = myMessage || isAdmin;  // свои или админ чата
+                const canEdit = myMessage;  
+                const canDelete = myMessage || isAdmin;  
                 
 
                 const menuItems = [
@@ -398,7 +473,7 @@ const handleLeaveChat = () => {
                   onClick: () => {
                     setSelectedMessage(msg);
                     setEditContent(msg.content);
-                    setIsEditModalOpen(true);
+                    setIsMessageEditModalOpen(true);
                   },
                 }] : []),
                 ...(canDelete ? [{
@@ -491,15 +566,21 @@ const handleLeaveChat = () => {
 
       <Modal
         title="Редактировать сообщение"
-        open={isEditModalOpen}
+        open={isMessageEditModalOpen}
         onCancel={() => {
-          setIsEditModalOpen(false);
+          setIsMessageEditModalOpen(false);
           setSelectedMessage(null);
           setEditContent('');
         }}
         onOk={handleEditMessage}
         confirmLoading={isEditing}
         okText="Сохранить"
+        okButtonProps={{
+          style: {
+            backgroundColor: '#7b68ee'
+            
+          }
+        }}
         cancelText="Отмена"
       >
         <Input.TextArea
@@ -542,7 +623,17 @@ const handleLeaveChat = () => {
               renderItem={(member) => (
                 <List.Item
                   actions={[
-                    member.user_id !== Number(user?.id) && (
+                    isAdmin && !member.is_admin && member.user_id !== Number(user?.id) && (
+                      <Button 
+                        size="small" 
+                        type="primary"
+                        style={{ background: '#7b68ee' }}
+                        onClick={() => handleTransferAdmin(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
+                      >
+                        Передать права
+                      </Button>
+                    ),
+                    isAdmin && member.user_id !== Number(user?.id) && (
                       <Button 
                         size="small" 
                         danger 
@@ -597,6 +688,8 @@ const handleLeaveChat = () => {
           }))}
         />
       </Modal>
+
+      
     </div>
   );
 };
