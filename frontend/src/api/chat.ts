@@ -7,6 +7,11 @@ export interface ChatMember {
   is_admin: boolean;
   joined_at: string;
   user_name?: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
 }
 
 export interface Chat {

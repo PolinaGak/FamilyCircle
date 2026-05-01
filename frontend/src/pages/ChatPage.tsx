@@ -2,22 +2,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Button, Typography, Spin, Input, 
-  message, Empty, Form 
+  message, Empty, Form, Tag
 } from 'antd';
 import { 
   ArrowLeftOutlined, SendOutlined
 } from '@ant-design/icons';
-import { chatAPI } from '../api/chat';
+import { chatAPI, ChatMember } from '../api/chat';
 import { messageAPI, Message } from '../api/message';
+import { message as antdMessage, Modal, Dropdown } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
-
+import { List, Avatar, Select } from 'antd';
+import { UserAddOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
+import { familyAPI } from '../api/family';
+import { EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const ChatPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, currentFamily  } = useAuth();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +31,18 @@ const ChatPage: React.FC = () => {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [form] = Form.useForm();
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [members, setMembers] = useState<ChatMember[]>([]);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [availableMembers, setAvailableMembers] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [membersCount, setMembersCount] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -40,6 +56,7 @@ const ChatPage: React.FC = () => {
       const response = await chatAPI.getById(Number(id));
       setChatName(response.data.title);
       setIsAdmin(response.data.is_admin || false);
+      setMembersCount(response.data.members_count);
     } catch (error) {
       console.error('Ошибка загрузки информации о чате:', error);
     }
@@ -142,6 +159,162 @@ const ChatPage: React.FC = () => {
     return groups;
   };
 
+  const handleEditMessage = async () => {
+  if (!selectedMessage || !editContent.trim()) return;
+  
+  setIsEditing(true);
+  try {
+    const response = await messageAPI.update(
+      Number(id), 
+      selectedMessage.id, 
+      editContent
+    );
+    
+    // Обновляем сообщение в списке
+    setMessages(prev => prev.map(msg => 
+      msg.id === selectedMessage.id 
+        ? { ...msg, content: editContent, is_edited: true }
+        : msg
+    ));
+    
+    setIsEditModalOpen(false);
+    setSelectedMessage(null);
+    setEditContent('');
+  } catch (error: any) {
+    message.error(error.response?.data?.detail || 'Не удалось редактировать сообщение');
+  } finally {
+    setIsEditing(false);
+  }
+};
+
+// Удаление сообщения
+const handleDeleteMessage = async (message: Message) => {
+  Modal.confirm({
+    title: 'Удалить сообщение',
+    content: 'Вы уверены, что хотите удалить это сообщение?',
+    okText: 'Удалить',
+    cancelText: 'Отмена',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        await messageAPI.delete(Number(id), message.id);
+        setMessages(prev => prev.filter(msg => msg.id !== message.id));
+        antdMessage.success('Сообщение удалено');
+      } catch (error: any) {
+        antdMessage.error(error.response?.data?.detail || 'Не удалось удалить сообщение');
+      }
+    },
+  });
+};
+  
+// Загрузить участников чата
+const loadMembers = async () => {
+  setIsLoadingMembers(true);
+  try {
+    const response = await chatAPI.getMembers(Number(id));
+    const membersData = response.data;
+    
+    // Получаем всех членов семьи для подстановки имён
+    if (currentFamily) {
+      const familyMembers = await familyAPI.getFamilyMembers(currentFamily.id);
+      const userMap = new Map();
+      familyMembers.data.forEach((member: any) => {
+        if (member.user_id) {
+          userMap.set(member.user_id, `${member.first_name} ${member.last_name}`);
+        }
+      });
+      
+      const membersWithNames = membersData.map((member: ChatMember) => ({
+        ...member,
+        user: {
+          id: member.user_id,
+          name: userMap.get(member.user_id) || `Пользователь ${member.user_id}`,
+        }
+      }));
+      setMembers(membersWithNames);
+    } else {
+      setMembers(membersData);
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки участников:', error);
+    antdMessage.error('Не удалось загрузить участников');
+  } finally {
+    setIsLoadingMembers(false);
+  }
+};
+
+// Загрузить доступных участников из семьи (кто ещё не в чате)
+const loadAvailableMembers = async () => {
+  try {
+    // Получаем всех членов семьи
+    const familyMembersResponse = await familyAPI.getFamilyMembers(Number(currentFamily?.id));
+    const existingMemberIds = new Set(members.map(m => m.user_id));
+    const available = familyMembersResponse.data.filter(
+      (member: any) => member.user_id && !existingMemberIds.has(member.user_id)
+    );
+    setAvailableMembers(available);
+  } catch (error) {
+    console.error('Ошибка загрузки доступных участников:', error);
+  }
+};
+
+// Добавить участника
+const handleAddMember = async () => {
+  if (!selectedUserId) return;
+  setIsAddingMember(true);
+  try {
+    await chatAPI.addMember(Number(id), selectedUserId);
+    antdMessage.success('Участник добавлен');
+    await loadMembers();
+    setIsAddMemberModalOpen(false);
+    setSelectedUserId(null);
+  } catch (error: any) {
+    antdMessage.error(error.response?.data?.detail || 'Не удалось добавить участника');
+  } finally {
+    setIsAddingMember(false);
+  }
+};
+
+// Удалить участника
+const handleRemoveMember = async (userId: number, userName: string) => {
+  Modal.confirm({
+    title: 'Удалить участника',
+    content: `Вы уверены, что хотите удалить "${userName}" из чата?`,
+    okText: 'Удалить',
+    cancelText: 'Отмена',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        await chatAPI.removeMember(Number(id), userId);
+        antdMessage.success('Участник удален');
+        await loadMembers();
+      } catch (error: any) {
+        antdMessage.error(error.response?.data?.detail || 'Не удалось удалить участника');
+      }
+    },
+  });
+};
+
+const handleLeaveChat = () => {
+  Modal.confirm({
+    title: 'Покинуть чат',
+    content: 'Вы уверены, что хотите покинуть этот чат? Вы потеряете доступ к сообщениям.',
+    okText: 'Покинуть',
+    cancelText: 'Отмена',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        await chatAPI.leave(Number(id));
+        antdMessage.success('Вы покинули чат');
+        navigate('/chats');
+      } catch (error: any) {
+        antdMessage.error(error.response?.data?.detail || 'Не удалось покинуть чат');
+      }
+    },
+  });
+};
+
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>
@@ -168,6 +341,27 @@ const ChatPage: React.FC = () => {
         </Button>
         <Title level={4} style={{ margin: 0 }}>{chatName || `Чат ${id}`}</Title>
         {isAdmin && <Text type="secondary" style={{ fontSize: 12 }}>(Администратор)</Text>}
+        {isAdmin && (
+        <Button 
+          type="text" 
+          icon={<TeamOutlined />} 
+          onClick={() => {
+            loadMembers();
+            setIsMembersModalOpen(true);
+          }}
+        >
+          Участники ({membersCount})
+        </Button>
+      )}
+      {!isAdmin && (
+        <Button 
+          danger
+          onClick={handleLeaveChat}
+        >
+          Покинуть чат
+        </Button>
+      )}
+
       </div>
 
       {/* Область сообщений */}
@@ -193,7 +387,35 @@ const ChatPage: React.FC = () => {
               </div>
               {group.messages.map((msg) => {
                 const myMessage = isMyMessage(msg);
+                const canEdit = myMessage;  // только свои сообщения можно редактировать
+                const canDelete = myMessage || isAdmin;  // свои или админ чата
+                
+
+                const menuItems = [
+                ...(canEdit ? [{
+                  key: 'edit',
+                  label: '✏️ Редактировать',
+                  onClick: () => {
+                    setSelectedMessage(msg);
+                    setEditContent(msg.content);
+                    setIsEditModalOpen(true);
+                  },
+                }] : []),
+                ...(canDelete ? [{
+                  key: 'delete',
+                  label: '🗑️ Удалить',
+                  danger: true,
+                  onClick: () => handleDeleteMessage(msg),
+                }] : []),
+              ];
+
                 return (
+
+                  <Dropdown
+                  menu={{ items: menuItems }}
+                  trigger={['contextMenu']}  
+                >
+
                   <div
                     key={msg.id}
                     style={{
@@ -228,6 +450,7 @@ const ChatPage: React.FC = () => {
                       </Text>
                     </div>
                   </div>
+                  </Dropdown>
                 );
               })}
             </div>
@@ -265,6 +488,115 @@ const ChatPage: React.FC = () => {
           />
         </Form>
       </div>
+
+      <Modal
+        title="Редактировать сообщение"
+        open={isEditModalOpen}
+        onCancel={() => {
+          setIsEditModalOpen(false);
+          setSelectedMessage(null);
+          setEditContent('');
+        }}
+        onOk={handleEditMessage}
+        confirmLoading={isEditing}
+        okText="Сохранить"
+        cancelText="Отмена"
+      >
+        <Input.TextArea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          rows={3}
+          placeholder="Введите текст сообщения"
+        />
+      </Modal>
+
+      <Modal
+        title="Участники чата"
+        open={isMembersModalOpen}
+        onCancel={() => {
+          setIsMembersModalOpen(false);
+          setSelectedUserId(null);
+        }}
+        footer={null}
+        width={500}
+      >
+        {isLoadingMembers ? (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <Spin />
+          </div>
+        ) : (
+          <>
+            <Button 
+              type="dashed" 
+              icon={<UserAddOutlined />} 
+              onClick={() => {
+                loadAvailableMembers();
+                setIsAddMemberModalOpen(true);
+              }}
+              style={{ marginBottom: 16, width: '100%' }}
+            >
+              Добавить участника
+            </Button>
+            <List
+              dataSource={members}
+              renderItem={(member) => (
+                <List.Item
+                  actions={[
+                    member.user_id !== Number(user?.id) && (
+                      <Button 
+                        size="small" 
+                        danger 
+                        onClick={() => handleRemoveMember(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
+                      >
+                        Удалить
+                      </Button>
+                    )
+                  ].filter(Boolean)}
+                >
+                  <List.Item.Meta
+                    avatar={<Avatar icon={<UserOutlined />} />}
+                    title={
+                      <span>
+                        {member.user?.name || `Пользователь ${member.user_id}`}
+                        {member.is_admin && <Tag color="purple" style={{ marginLeft: 8 }}>Админ</Tag>}
+                      </span>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        title="Добавить участника"
+        open={isAddMemberModalOpen}
+        onCancel={() => {
+          setIsAddMemberModalOpen(false);
+          setSelectedUserId(null);
+        }}
+        onOk={handleAddMember}
+        confirmLoading={isAddingMember}
+        okText="Добавить"
+        cancelText="Отмена"
+        okButtonProps={{
+          style: {
+            backgroundColor: '#7b68ee'
+            
+          }
+        }}
+      >
+        <Select
+          placeholder="Выберите участника"
+          style={{ width: '100%' }}
+          onChange={(value) => setSelectedUserId(value)}
+          options={availableMembers.map((member) => ({
+            value: member.user_id,
+            label: `${member.last_name} ${member.first_name}`,
+          }))}
+        />
+      </Modal>
     </div>
   );
 };

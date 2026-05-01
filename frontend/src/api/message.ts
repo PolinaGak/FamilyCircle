@@ -3,10 +3,10 @@ import { apiClient } from './client';
 export interface Message {
   id: number;
   chat_id: number;
-  sender_id: number;
+  sender_user_id: number;
   sender_name?: string;
   content: string;
-  created_at: string;
+  sent_at: string;
   updated_at?: string;
   is_edited?: boolean;
   is_deleted?: boolean;
