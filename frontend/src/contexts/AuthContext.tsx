@@ -155,7 +155,6 @@ useEffect(() => {
       const response = await familyAPI.getMyFamilies();
       setFamilies(response.data);
       
-      // Если есть семьи и нет выбранной - выбираем первую
       if (response.data.length > 0 && !currentFamily) {
         setCurrentFamily(response.data[0]);
       }

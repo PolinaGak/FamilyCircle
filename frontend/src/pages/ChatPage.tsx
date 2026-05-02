@@ -411,6 +411,16 @@ const handleLeaveChat = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '8px' }}>
+          <Button 
+            type="text" 
+            icon={<TeamOutlined />} 
+            onClick={() => {
+              loadMembers();
+              setIsMembersModalOpen(true);
+            }}
+          >
+            Участники ({membersCount})
+          </Button>
           {isAdmin && (
             <>
               <Button 
@@ -419,16 +429,7 @@ const handleLeaveChat = () => {
                 icon={<DeleteOutlined />} 
                 onClick={handleDeleteChat}
               />
-              <Button 
-                type="text" 
-                icon={<TeamOutlined />} 
-                onClick={() => {
-                  loadMembers();
-                  setIsMembersModalOpen(true);
-                }}
-              >
-                Участники ({membersCount})
-              </Button>
+              
             </>
           )}
           {!isAdmin && (
@@ -607,40 +608,47 @@ const handleLeaveChat = () => {
           </div>
         ) : (
           <>
-            <Button 
-              type="dashed" 
-              icon={<UserAddOutlined />} 
-              onClick={() => {
-                loadAvailableMembers();
-                setIsAddMemberModalOpen(true);
-              }}
-              style={{ marginBottom: 16, width: '100%' }}
-            >
-              Добавить участника
-            </Button>
+            {/* Кнопка добавления — только для админа */}
+            {isAdmin && (
+              <Button 
+                type="dashed" 
+                icon={<UserAddOutlined />} 
+                onClick={() => {
+                  loadAvailableMembers();
+                  setIsAddMemberModalOpen(true);
+                }}
+                style={{ marginBottom: 16, width: '100%' }}
+              >
+                Добавить участника
+              </Button>
+            )}
+            
             <List
               dataSource={members}
               renderItem={(member) => (
                 <List.Item
                   actions={[
-                    isAdmin && !member.is_admin && member.user_id !== Number(user?.id) && (
-                      <Button 
-                        size="small" 
-                        type="primary"
-                        style={{ background: '#7b68ee' }}
-                        onClick={() => handleTransferAdmin(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
-                      >
-                        Передать права
-                      </Button>
-                    ),
+                    // Действия только для админа (и не для себя)
                     isAdmin && member.user_id !== Number(user?.id) && (
-                      <Button 
-                        size="small" 
-                        danger 
-                        onClick={() => handleRemoveMember(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
-                      >
-                        Удалить
-                      </Button>
+                      <>
+                        {!member.is_admin && (
+                          <Button 
+                            size="small" 
+                            type="primary"
+                            style={{ background: '#7b68ee' }}
+                            onClick={() => handleTransferAdmin(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
+                          >
+                            Передать права
+                          </Button>
+                        )}
+                        <Button 
+                          size="small" 
+                          danger 
+                          onClick={() => handleRemoveMember(member.user_id, member.user?.name || `Пользователь ${member.user_id}`)}
+                        >
+                          Удалить
+                        </Button>
+                      </>
                     )
                   ].filter(Boolean)}
                 >

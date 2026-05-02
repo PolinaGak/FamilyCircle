@@ -19,6 +19,7 @@ import AlbumPage from './pages/AlbumPage';
 //import FamilyTreePage from './pages/FamilyTreePage';
 import ChatListPage from './pages/ChatListPage';
 import ChatPage from './pages/ChatPage';
+import CalendarPage from './pages/CalendarPage';
 import './App.css';
 
 
@@ -44,7 +45,7 @@ function App() {
           <Route path="/tree" element={<div>Семейное дерево</div>} />
           <Route path="/chats" element={<ChatListPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
-          <Route path="/calendar" element={<div>Календарь</div>} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/edit-profile" element={<EditProfilePage />} />
           <Route path="/chat/:id" element={<ChatPage />} />
           <Route path="/album/:albumId" element={<AlbumPage />} />
