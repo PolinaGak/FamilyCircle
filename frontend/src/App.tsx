@@ -16,6 +16,7 @@ import SettingsPage from './pages/SettingsPage';
 import EditProfilePage from './pages/EditProfilePage';
 import GalleryPage from './pages/GalleryPage';
 import AlbumPage from './pages/AlbumPage';
+import EventResponsePage from './pages/EventResponsePage';
 //import FamilyTreePage from './pages/FamilyTreePage';
 import ChatListPage from './pages/ChatListPage';
 import ChatPage from './pages/ChatPage';
@@ -35,6 +36,7 @@ function App() {
         <Route path="/verify-pending" element={<VerifyPendingPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/events/:event_id/respond" element={<EventResponsePage />} />
 
         {/* Защищенные маршруты*/}
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
@@ -49,6 +51,7 @@ function App() {
           <Route path="/edit-profile" element={<EditProfilePage />} />
           <Route path="/chat/:id" element={<ChatPage />} />
           <Route path="/album/:albumId" element={<AlbumPage />} />
+          
         </Route>
 
         {/* Резервный маршрут */}

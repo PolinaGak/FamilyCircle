@@ -2,13 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ru } from 'date-fns/locale';
 import { Card, Spin, Select, Typography, Button, Modal, Form, Input, DatePicker, message, Switch } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { eventAPI, CalendarEvent } from '../api/event';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { familyAPI } from '../api/family';
+import { Tabs, List, Empty } from 'antd';
+
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
@@ -45,7 +48,16 @@ const CalendarPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedFamilyId, setSelectedFamilyId] = useState<number | undefined>(currentFamily?.id);
   const [isLoadingFamilies, setIsLoadingFamilies] = useState(true);
-
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [availableMembers, setAvailableMembers] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
+  const [respondingEventId, setRespondingEventId] = useState<number | null>(null);
+  
+  
     useEffect(() => {
     const loadData = async () => {
         setIsLoadingFamilies(true);
@@ -62,25 +74,68 @@ const CalendarPage: React.FC = () => {
     }, []);
 
   const loadEvents = async () => {
-  if (!selectedFamilyId) return;
-  
-  setIsLoading(true);
-  try {
-    const response = await eventAPI.getCalendarEvents(selectedFamilyId);
-    setEvents(response.data);
-  } catch (error) {
-    console.error('Ошибка загрузки событий:', error);
-    message.error('Не удалось загрузить события');
-  } finally {
-    setIsLoading(false);
-  }
-};
+    if (!selectedFamilyId) return;
+    
+    setIsLoading(true);
+    try {
+        const response = await eventAPI.getCalendarEvents(selectedFamilyId);
+        setEvents(response.data);
+    } catch (error) {
+        console.error('Ошибка загрузки событий:', error);
+        message.error('Не удалось загрузить события');
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
-useEffect(() => {
-  if (selectedFamilyId) {
-    loadEvents();
-  }
-}, [selectedFamilyId]);
+  useEffect(() => {
+    if (selectedFamilyId) {
+        loadEvents();
+    }
+    }, [selectedFamilyId]);
+
+    const loadAvailableMembersForEvent = async (eventId: number) => {
+        if (!selectedFamilyId) return;
+        
+        try {
+            const eventResponse = await eventAPI.getById(eventId);
+            const existingParticipantIds = eventResponse.data.participants.map(p => p.user_id);
+            
+            const familyMembersResponse = await familyAPI.getFamilyMembers(selectedFamilyId);
+            const available = familyMembersResponse.data.filter(
+            (member: any) => member.user_id && !existingParticipantIds.includes(member.user_id)
+            );
+            setAvailableMembers(available);
+        } catch (error) {
+            console.error('Ошибка загрузки участников:', error);
+            message.error('Не удалось загрузить список участников');
+        }
+    };
+
+    useEffect(() => {
+    if (selectedFamilyId) {
+        loadEvents();
+        loadPendingInvitations();
+    }
+    }, [selectedFamilyId]);
+
+    const handleInviteMember = async () => {
+        if (!selectedEventId || !selectedUserId) return;
+        
+        setIsInviting(true);
+        try {
+            await eventAPI.inviteParticipant(selectedEventId, selectedUserId);
+            message.success('Приглашение отправлено');
+            setIsInviteModalOpen(false);
+            setSelectedUserId(null);
+            loadEvents(); 
+        } catch (error: any) {
+            message.error(error.response?.data?.detail || 'Не удалось пригласить участника');
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
   
   const handleFamilyChange = (familyId: number) => {
     setSelectedFamilyId(familyId);
@@ -117,6 +172,39 @@ useEffect(() => {
     }
   };
 
+  const loadPendingInvitations = async () => {
+    setIsLoadingInvitations(true);
+    try {
+        const response = await eventAPI.getPendingInvitations();
+        setPendingInvitations(response.data);
+    } catch (error) {
+        console.error('Ошибка загрузки приглашений:', error);
+    } finally {
+        setIsLoadingInvitations(false);
+    }
+    };
+
+    const handleRespondToInvitation = async (eventId: number, accept: boolean) => {
+    setRespondingEventId(eventId);
+    try {
+        await eventAPI.respondToInvitation(eventId, accept);
+        message.success(accept ? 'Вы приняли приглашение' : 'Вы отклонили приглашение');
+        await loadPendingInvitations();
+        await loadEvents();
+    } catch (error: any) {
+        message.error(error.response?.data?.detail || 'Ошибка при ответе на приглашение');
+    } finally {
+        setRespondingEventId(null);
+    }
+    };
+
+  const handleEventClick = (event: any) => {
+    const eventId = event.id;
+    setSelectedEventId(eventId);
+    loadAvailableMembersForEvent(eventId);
+    setIsInviteModalOpen(true);
+  };
+
   if (isLoadingFamilies) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -133,11 +221,12 @@ useEffect(() => {
       </div>
     );
   }
-
-  return (
-    <div style={{ padding: '24px', height: 'calc(100vh - 64px)' }}>
-      {/* Заголовок с выбором семьи и кнопкой создания */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+return (
+  <div style={{ padding: '24px', height: 'calc(100vh - 64px)' }}>
+    {/* Заголовок с выбором семьи и кнопкой создания */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        
         <div>
           <Title level={2} style={{ margin: 0 }}>Календарь</Title>
           <Select
@@ -147,48 +236,141 @@ useEffect(() => {
             options={families.map(f => ({ value: f.id, label: f.name }))}
           />
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => setIsModalOpen(true)}
-          style={{ background: '#7b68ee' }}
-        >
-          Создать событие
-        </Button>
       </div>
+      <Button 
+        type="primary" 
+        icon={<PlusOutlined />} 
+        onClick={() => setIsModalOpen(true)}
+        style={{ background: '#7b68ee' }}
+      >
+        Создать событие
+      </Button>
+    </div>
 
-      {/* Календарь */}
-    <Card style={{ height: 'calc(100vh - 200px)', borderRadius: '12px', overflow: 'auto' }}>
-    {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Spin size="large" />
-        </div>
-    ) : (
-        <Calendar
-        localizer={localizer}
-        events={transformEvents(events)}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: '100%', minHeight: 600 }}
-        culture="ru"
-        messages={{
-            today: 'Сегодня',
-            previous: 'Назад',
-            next: 'Вперед',
-            month: 'Месяц',
-            week: 'Неделя',
-            day: 'День',
-            agenda: 'Повестка',
-            date: 'Дата',
-            time: 'Время',
-            event: 'Событие',
-            noEventsInRange: 'Нет событий в выбранном периоде',
-        }}
-        />
-    )}
-    </Card>
+    {/* Вкладки: Календарь и Приглашения */}
+    <Tabs
+      defaultActiveKey="calendar"
+      items={[
+        {
+          key: 'calendar',
+          label: 'Календарь',
+          children: (
+            <Card style={{ height: 'calc(100vh - 270px)', borderRadius: '12px', overflow: 'auto' }}>
+              {isLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                  <Spin size="large" />
+                </div>
+              ) : (
+                <Calendar
+                  localizer={localizer}
+                  events={transformEvents(events)}
+                  startAccessor="start"
+                  endAccessor="end"
+                  style={{ height: '100%', minHeight: 600 }}
+                  culture="ru"
+                  onSelectEvent={handleEventClick}
+                  messages={{
+                    today: 'Сегодня',
+                    previous: 'Назад',
+                    next: 'Вперед',
+                    month: 'Месяц',
+                    week: 'Неделя',
+                    day: 'День',
+                    agenda: 'Повестка',
+                    date: 'Дата',
+                    time: 'Время',
+                    event: 'Событие',
+                    noEventsInRange: 'Нет событий в выбранном периоде',
+                  }}
+                />
+              )}
+            </Card>
+          ),
+        },
+        {
+          key: 'invitations',
+          label: `Приглашения (${pendingInvitations.length})`,
+          children: (
+            <Card style={{ borderRadius: '12px' }}>
+              {isLoadingInvitations ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <Spin size="large" />
+                </div>
+              ) : pendingInvitations.length === 0 ? (
+                <Empty description="Нет ожидающих приглашений" />
+              ) : (
+                <List
+                  dataSource={pendingInvitations}
+                  renderItem={(inv) => (
+                    <List.Item
+                      actions={[
+                        <Button 
+                          type="primary" 
+                          size="small"
+                          loading={respondingEventId === inv.event_id}
+                          onClick={() => handleRespondToInvitation(inv.event_id, true)}
+                          style={{ background: '#52c41a' }}
+                        >
+                          Принять
+                        </Button>,
+                        <Button 
+                          danger 
+                          size="small"
+                          loading={respondingEventId === inv.event_id}
+                          onClick={() => handleRespondToInvitation(inv.event_id, false)}
+                        >
+                          Отклонить
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<strong>{inv.event_title}</strong>}
+                        description={
+                          <div>
+                            <div>Семья: {inv.family_name}</div>
+                            <div>📅 Начало: {new Date(inv.start_datetime).toLocaleString()}</div>
+                            <div>🔚 Окончание: {new Date(inv.end_datetime).toLocaleString()}</div>
+                            <div>🕒 Приглашение отправлено: {new Date(inv.invited_at).toLocaleString()}</div>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              )}
+            </Card>
+          ),
+        },
+      ]}
+    />
+    {/* Модальное окно для приглашения участников */}
+    <Modal
+    title="Пригласить участников"
+    open={isInviteModalOpen}
+    onCancel={() => {
+        setIsInviteModalOpen(false);
+        setSelectedUserId(null);
+    }}
+    onOk={handleInviteMember}
+    confirmLoading={isInviting}
+    okText="Пригласить"
+    cancelText="Отмена"
+    okButtonProps={{
+        style: { backgroundColor: '#7b68ee' }
+    }}
+    >
+    <Select
+        placeholder="Выберите участника"
+        style={{ width: '100%' }}
+        onChange={(value) => setSelectedUserId(value)}
+        options={availableMembers.map((member) => ({
+        value: member.user_id,
+        label: `${member.last_name} ${member.first_name}`,
+        }))}
+    />
+    </Modal>
 
-      {/* Модальное окно создания события */}
+    {/* Модальное окно создания события */}
       <Modal
         title="Создать событие"
         open={isModalOpen}
@@ -241,8 +423,8 @@ useEffect(() => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-  );
-};
+  </div>
+);
+}
 
 export default CalendarPage;
