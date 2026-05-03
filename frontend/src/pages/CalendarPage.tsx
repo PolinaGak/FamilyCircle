@@ -11,7 +11,9 @@ import { eventAPI, CalendarEvent } from '../api/event';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { familyAPI } from '../api/family';
 import { Tabs, List, Empty } from 'antd';
-
+import { UserOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Divider, Tag } from 'antd';
+import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
@@ -40,7 +42,7 @@ const transformEvents = (events: CalendarEvent[]) => {
 };
 
 const CalendarPage: React.FC = () => {
-  const { families, currentFamily, setCurrentFamily, loadUserFamilies } = useAuth();
+  const { user, families, currentFamily, setCurrentFamily, loadUserFamilies } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,8 +58,16 @@ const CalendarPage: React.FC = () => {
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [respondingEventId, setRespondingEventId] = useState<number | null>(null);
-  
-  
+  const [isEventAdmin, setIsEventAdmin] = useState(false);
+  const [isEventDetailModalOpen, setIsEventDetailModalOpen] = useState(false);
+  const [selectedEventDetail, setSelectedEventDetail] = useState<any>(null);
+  const [eventParticipants, setEventParticipants] = useState<any[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editEventForm] = Form.useForm();
+
+
     useEffect(() => {
     const loadData = async () => {
         setIsLoadingFamilies(true);
@@ -184,7 +194,7 @@ const CalendarPage: React.FC = () => {
     }
     };
 
-    const handleRespondToInvitation = async (eventId: number, accept: boolean) => {
+  const handleRespondToInvitation = async (eventId: number, accept: boolean) => {
     setRespondingEventId(eventId);
     try {
         await eventAPI.respondToInvitation(eventId, accept);
@@ -196,14 +206,119 @@ const CalendarPage: React.FC = () => {
     } finally {
         setRespondingEventId(null);
     }
+  };
+
+  const loadEventDetail = async (eventId: number) => {
+    try {
+        const response = await eventAPI.getById(eventId);
+        setSelectedEventDetail(response.data);
+        setIsLoadingParticipants(true);
+        if (selectedFamilyId) {
+        const familyMembers = await familyAPI.getFamilyMembers(selectedFamilyId);
+        const userMap = new Map();
+        familyMembers.data.forEach((member: any) => {
+            if (member.user_id) {
+            userMap.set(member.user_id, `${member.first_name} ${member.last_name}`);
+            }
+        });
+        
+        const participantsWithNames = response.data.participants.map((p: any) => ({
+            ...p,
+            user: {
+            id: p.user_id,
+            name: userMap.get(p.user_id) || `Пользователь ${p.user_id}`,
+            }
+        }));
+        setEventParticipants(participantsWithNames);
+        } else {
+        setEventParticipants(response.data.participants || []);
+        }
+        setIsLoadingParticipants(false);
+        
+        setIsEventAdmin(response.data.is_admin || false);
+        setIsEventDetailModalOpen(true);
+    } catch (error) {
+        console.error('Ошибка загрузки деталей события:', error);
+        message.error('Не удалось загрузить информацию о событии');
+    }
+  };
+
+  // Удаление участника из события (только для создателя)
+    const handleRemoveParticipant = async (userId: number) => {
+    if (!selectedEventDetail) return;
+    
+    Modal.confirm({
+        title: 'Удалить участника',
+        content: 'Вы уверены, что хотите удалить этого участника из события?',
+        okText: 'Удалить',
+        cancelText: 'Отмена',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+        try {
+            await eventAPI.removeParticipant(selectedEventDetail.id, userId);
+            message.success('Участник удалён');
+            // Обновляем список участников
+            await loadEventDetail(selectedEventDetail.id);
+            await loadEvents();
+        } catch (error: any) {
+            message.error(error.response?.data?.detail || 'Не удалось удалить участника');
+        }
+        },
+    });
+    };
+
+    // Удаление события (только для создателя)
+    const handleDeleteEvent = async (eventId: number) => {
+    Modal.confirm({
+        title: 'Удалить событие',
+        content: 'Вы уверены, что хотите удалить это событие? Все данные будут потеряны.',
+        okText: 'Удалить',
+        cancelText: 'Отмена',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+        try {
+            await eventAPI.delete(eventId);
+            message.success('Событие удалено');
+            setIsEventDetailModalOpen(false);
+            await loadEvents();
+            await loadPendingInvitations();
+        } catch (error: any) {
+            message.error(error.response?.data?.detail || 'Не удалось удалить событие');
+        }
+        },
+    });
+    };
+
+// Редактирование события
+    const handleEditEvent = async (values: any) => {
+    if (!selectedEventDetail) return;
+    
+    setIsEditing(true);
+    try {
+        const [start, end] = values.dateRange;
+        
+        await eventAPI.update(selectedEventDetail.id, {
+        title: values.title,
+        description: values.description,
+        start_datetime: start.toISOString(),
+        end_datetime: end.toISOString(),
+        });
+        
+        message.success('Событие обновлено');
+        setIsEditEventModalOpen(false);
+        await loadEventDetail(selectedEventDetail.id);
+        await loadEvents();
+    } catch (error: any) {
+        message.error(error.response?.data?.detail || 'Не удалось обновить событие');
+    } finally {
+        setIsEditing(false);
+    }
     };
 
   const handleEventClick = (event: any) => {
-    const eventId = event.id;
-    setSelectedEventId(eventId);
-    loadAvailableMembersForEvent(eventId);
-    setIsInviteModalOpen(true);
+    loadEventDetail(event.id);
   };
+
 
   if (isLoadingFamilies) {
     return (
@@ -423,6 +538,158 @@ return (
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        title="Информация о событии"
+        open={isEventDetailModalOpen}
+        onCancel={() => setIsEventDetailModalOpen(false)}
+        footer={null}
+        width={600}
+        >
+        {selectedEventDetail && (
+            <>
+            <Title level={4}>{selectedEventDetail.title}</Title>
+            {selectedEventDetail.description && (
+                <Text type="secondary">{selectedEventDetail.description}</Text>
+            )}
+            
+            <div style={{ margin: '16px 0' }}>
+                <div>📅 Начало: {new Date(selectedEventDetail.start_datetime).toLocaleString()}</div>
+                <div>🔚 Окончание: {new Date(selectedEventDetail.end_datetime).toLocaleString()}</div>
+                {selectedEventDetail.chat_exists && (
+                <div>💬 Чат события создан</div>
+                )}
+            </div>
+
+            <Divider orientation="left">Участники ({eventParticipants.length})</Divider>
+            <List
+                dataSource={eventParticipants}
+                renderItem={(participant) => (
+                <List.Item>
+                    <List.Item.Meta
+                    avatar={<UserOutlined />}
+                    title={participant.user?.name || `Пользователь ${participant.user_id}`}
+                    description={
+                        <>
+                        {participant.user_id === selectedEventDetail.created_by_user_id && (
+                            <Tag color="gold">Создатель</Tag>
+                        )}
+                        <Tag color={participant.status === 'accepted' ? 'green' : 'orange'}>
+                            {participant.status === 'accepted' ? 'Принял' : 'Приглашён'}
+                        </Tag>
+                        </>
+                    }
+                    />
+                    {isEventAdmin && participant.user_id !== user?.id && (
+                    <Button 
+                        size="small" 
+                        danger 
+                        onClick={() => handleRemoveParticipant(participant.user_id)}
+                    >
+                        Удалить
+                    </Button>
+                    )}
+                </List.Item>
+                )}
+            />
+
+            {isEventAdmin && (
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <Button 
+                type="primary" 
+                icon={<UserAddOutlined />}
+                style={{ background: '#7b68ee' }}
+                onClick={() => {
+                    setIsEventDetailModalOpen(false);
+                    loadAvailableMembersForEvent(selectedEventDetail.id);
+                    setIsInviteModalOpen(true);
+                }}
+                >
+                Пригласить
+                </Button>
+                <Button 
+                icon={<EditOutlined />}
+                onClick={() => {
+                    editEventForm.setFieldsValue({
+                    title: selectedEventDetail.title,
+                    description: selectedEventDetail.description,
+                    dateRange: [
+                        dayjs(selectedEventDetail.start_datetime),
+                        dayjs(selectedEventDetail.end_datetime),
+                    ],
+                    });
+                    setIsEditEventModalOpen(true);
+                }}
+                >
+                Редактировать
+                </Button>
+                <Button 
+                danger 
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteEvent(selectedEventDetail.id)}
+                >
+                Удалить
+                </Button>
+            </div>
+            )}
+            </>
+        )}
+        </Modal>
+
+        <Modal
+            title="Редактировать событие"
+            open={isEditEventModalOpen}
+            onCancel={() => {
+                setIsEditEventModalOpen(false);
+                editEventForm.resetFields();
+            }}
+            footer={null}
+            destroyOnClose
+            >
+            <Form
+                form={editEventForm}
+                layout="vertical"
+                onFinish={handleEditEvent}
+                initialValues={{
+                title: selectedEventDetail?.title,
+                description: selectedEventDetail?.description,
+                dateRange: [
+                    selectedEventDetail ? dayjs(selectedEventDetail.start_datetime) : null,
+                    selectedEventDetail ? dayjs(selectedEventDetail.end_datetime) : null,
+                ],
+                }}
+            >
+                <Form.Item
+                name="title"
+                label="Название"
+                rules={[{ required: true, message: 'Введите название' }]}
+                >
+                <Input placeholder="Название события" />
+                </Form.Item>
+
+                <Form.Item name="description" label="Описание">
+                <Input.TextArea rows={3} placeholder="Описание события (необязательно)" />
+                </Form.Item>
+
+                <Form.Item
+                name="dateRange"
+                label="Дата и время"
+                rules={[{ required: true, message: 'Выберите дату и время' }]}
+                >
+                <RangePicker showTime format="DD.MM.YYYY HH:mm" style={{ width: '100%' }} />
+                </Form.Item>
+
+                <Form.Item>
+                <Button type="primary" 
+                    htmlType="submit" 
+                    loading={isEditing} block
+                    style={{ background: '#7b68ee' }}
+                    >
+                    Сохранить изменения
+                </Button>
+                </Form.Item>
+            </Form>
+            </Modal>
   </div>
 );
 }
