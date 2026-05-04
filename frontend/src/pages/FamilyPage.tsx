@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Spin, Button, Descriptions, message, Modal, Input, Space, Tag, Form, Select, Radio } from 'antd';
+import { Card, Typography, Spin, Button, Descriptions, 
+  message, Modal, Input, Space, Tag, Form, Select, Radio } from 'antd';
 import { ArrowLeftOutlined, UserAddOutlined, CopyOutlined } from '@ant-design/icons';
-import { familyAPI, Family, FamilyMember} from '../api/family';
+import { familyAPI, Family, FamilyMember, RelativesGroup} from '../api/family';
 import { invitationAPI, Invitation } from '../api/invitation';
 import { useAuth } from '../contexts/AuthContext';
 import { EditOutlined } from '@ant-design/icons';
 import AddFamilyMemberModal from '../components/AddFamilyMemberModal';
+
 const { Title } = Typography;
 const FamilyPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +36,9 @@ const FamilyPage: React.FC = () => {
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFamilyName, setEditFamilyName] = useState('');
+  const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
+  const [relativesMap, setRelativesMap] = useState<Record<number, RelativesGroup>>({});
+  const [loadingRelatives, setLoadingRelatives] = useState(false);
 
   const loadFamilyData = async () => {
     if (!id) return;
@@ -306,6 +311,30 @@ const FamilyPage: React.FC = () => {
     }
   };
 
+  const loadRelatives = async (memberId: number) => {
+    if (relativesMap[memberId]) return; 
+    
+    setLoadingRelatives(true);
+    try {
+      const response = await familyAPI.getMemberRelatives(Number(id), memberId);
+      setRelativesMap(prev => ({ ...prev, [memberId]: response.data }));
+    } catch (error) {
+      console.error('Ошибка загрузки родственников:', error);
+      message.error('Не удалось загрузить связи');
+    } finally {
+      setLoadingRelatives(false);
+    }
+  };
+
+  const handleMemberClick = (memberId: number) => {
+    if (expandedMemberId === memberId) {
+      setExpandedMemberId(null);
+    } else {
+      setExpandedMemberId(memberId);
+      loadRelatives(memberId);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -394,14 +423,23 @@ const FamilyPage: React.FC = () => {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {members.map((member) => (
-            <div key={member.id} style={{
-              padding: '12px',
-              border: '1px solid #e9ecef',
-              borderRadius: '8px',
-              background: '#f8f9fa'}}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                   <span style={{ fontWeight: 'bold' }}>
+            <div key={member.id}>
+              <div
+                onClick={() => handleMemberClick(member.id)}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #e9ecef',
+                  borderRadius: '8px',
+                  background: '#f8f9fa',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e9ecef')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f8f9fa')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontWeight: 'bold' }}>
                       {member.last_name} {member.first_name} {member.patronymic || ''}
                     </span>
                     {member.is_admin && <Tag color="purple">Админ</Tag>}
@@ -416,40 +454,83 @@ const FamilyPage: React.FC = () => {
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     {member.user_id === Number(user?.id) && <span style={{ color: '#666' }}>Это вы</span>}
                     
-                  {isAdmin && !member.approved && !member.user_id && (
-                    <Button 
-                    size="small" type="primary" 
-                    onClick={() => handleApproveMember(member.id, `${member.first_name} ${member.last_name}`)}
-                    style={{ background: '#7b68ee' }}
-                    >
-                      Подтвердить
-                    </Button>
-                  )}
-                  
-                  {/* Кнопка "Сделать администратором" только для текущего админа и для обычных участников */}
-                  {isAdmin && !member.is_admin && member.user_id !== null && (
-                    <Button 
-                      size="small" 
-                      type="primary"
-                      style={{ background: '#7b68ee' }}
-                      onClick={() => handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`)}
-                    >
-                      Сделать админом
-                    </Button>
-                  )}
-                  
-                  {/* Кнопка удаления только для администратора и не для себя */}
-                  {isAdmin && member.user_id !== Number(user?.id) && (
-                    <Button 
-                      size="small" 
-                      danger 
-                      onClick={() => handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`)}
-                    >
-                      Исключить
-                    </Button>
-                  )}
+                    {/* Кнопки управления (без изменений) */}
+                    {isAdmin && !member.approved && !member.user_id && (
+                      <Button size="small" type="primary" onClick={(e) => { e.stopPropagation(); handleApproveMember(member.id, `${member.first_name} ${member.last_name}`); }} style={{ background: '#7b68ee' }}>Подтвердить</Button>
+                    )}
+                    {isAdmin && !member.is_admin && member.user_id !== null && (
+                      <Button size="small" type="primary" style={{ background: '#7b68ee' }} onClick={(e) => { e.stopPropagation(); handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`); }}>Сделать админом</Button>
+                    )}
+                    {isAdmin && member.user_id !== Number(user?.id) && (
+                      <Button size="small" danger onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`); }}>Исключить</Button>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Раскрывающаяся панель с родственниками */}
+              {expandedMemberId === member.id && (
+                <div style={{
+                  padding: '12px',
+                  marginTop: '4px',
+                  background: '#fff',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '0 0 8px 8px',
+                  borderTop: 'none',
+                }}>
+                  {loadingRelatives && !relativesMap[member.id] ? (
+                    <Spin />
+                  ) : relativesMap[member.id] ? (
+                    <div>
+                      {relativesMap[member.id].parents.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Typography.Text strong>Родители:</Typography.Text>{' '}
+                          {relativesMap[member.id].parents.map(p => (
+                            <span key={p.id} style={{ marginRight: '12px' }}>
+                              {p.first_name} {p.last_name} ({p.relationship_type === 'father' ? 'отец' : 'мать'})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {relativesMap[member.id].children.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Typography.Text strong>Дети:</Typography.Text>{' '}
+                          {relativesMap[member.id].children.map(c => (
+                            <span key={c.id} style={{ marginRight: '12px' }}>
+                              {c.first_name} {c.last_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {relativesMap[member.id].spouses.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Typography.Text strong>Супруг(а):</Typography.Text>{' '}
+                          {relativesMap[member.id].spouses.map(s => (
+                            <span key={s.id} style={{ marginRight: '12px' }}>
+                              {s.first_name} {s.last_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {relativesMap[member.id].siblings.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Typography.Text strong>Братья/сёстры:</Typography.Text>{' '}
+                          {relativesMap[member.id].siblings.map(sib => (
+                            <span key={sib.id} style={{ marginRight: '12px' }}>
+                              {sib.first_name} {sib.last_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {Object.values(relativesMap[member.id]).every(arr => arr.length === 0) && (
+                        <Typography.Text type="secondary">Нет указанных связей</Typography.Text>
+                      )}
+                    </div>
+                  ) : (
+                    <Typography.Text type="secondary">Нажмите, чтобы загрузить связи</Typography.Text>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

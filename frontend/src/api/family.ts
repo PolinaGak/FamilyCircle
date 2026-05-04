@@ -11,18 +11,21 @@ export interface FamilyMember {
   id: number;
   family_id: number;
   user_id: number | null;
-  is_admin: boolean;
   first_name: string;
   last_name: string;
-  patronymic?: string;
-  gender: string;
+  patronymic: string | null;
+  gender: 'male' | 'female';
   birth_date: string;
-  death_date?: string;
-  phone?: string;
-  workplace?: string;
-  residence?: string;
+  death_date: string | null;
+  phone: string | null;
+  workplace: string | null;
+  residence: string | null;
+  is_admin: boolean;
   is_active: boolean;
   approved: boolean;
+  created_by_user_id: number;
+  created_at: string;
+  
 }
 
 export interface CreateMemberData {
@@ -36,6 +39,37 @@ export interface CreateMemberData {
   workplace?: string;
   residence?: string;
   is_admin?: boolean;
+  user_id?: number;
+  related_member_id?: number;      
+  relationship_type?: string;       
+}
+
+export interface RelativesGroup {
+  parents: Array<{
+    id: number;
+    first_name: string;
+    last_name: string;
+    patronymic?: string;
+    gender?: string;
+    relationship_type: string;
+  }>;
+  children: Array<{
+    id: number;
+    first_name: string;
+    last_name: string;
+    patronymic?: string;
+    gender?: string;
+  }>;
+  spouses: Array<{
+    id: number;
+    first_name: string;
+    last_name: string;
+  }>;
+  siblings: Array<{
+    id: number;
+    first_name: string;
+    last_name: string;
+  }>;
 }
 
 export const familyAPI = {
@@ -56,19 +90,9 @@ export const familyAPI = {
     apiClient.get<FamilyMember[]>(`/family/${familyId}/members`),
 
   //Создать карточку родственника
-  createMember: (familyId: number, data: CreateMemberData) =>
-  apiClient.post<FamilyMember>(`/family/${familyId}/member`, {
-    first_name: data.first_name,
-    last_name: data.last_name,
-    patronymic: data.patronymic,
-    birth_date: data.birth_date,
-    gender: data.gender,  
-    phone: data.phone,
-    workplace: data.workplace,
-    residence: data.residence,
-    is_admin: data.is_admin || false,
-    related_member_id: 0,
-  }),
+  createMember: (familyId: number, data: CreateMemberData) => {
+    return apiClient.post(`/family/${familyId}/member`, data);
+  },
 
   removeMember: (memberId: number) =>
   apiClient.delete(`/family/member/${memberId}`),
@@ -100,4 +124,9 @@ export const familyAPI = {
   residence?: string;
   is_active?: boolean;
 }) => apiClient.put(`/family/member/${memberId}`, data),
+
+ getMemberRelatives: (familyId: number, memberId: number) => {
+  return apiClient.get(`/family/${familyId}/tree/member/${memberId}/relatives`);
+}
+
 }
