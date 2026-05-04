@@ -319,6 +319,30 @@ const CalendarPage: React.FC = () => {
     loadEventDetail(event.id);
   };
 
+  const handleLeaveEvent = async () => {
+  if (!selectedEventDetail) return;
+  
+  Modal.confirm({
+    title: 'Покинуть событие',
+    content: 'Вы уверены, что хотите покинуть это событие? Вы потеряете доступ к чату события (если он был создан).',
+    okText: 'Покинуть',
+    cancelText: 'Отмена',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        // Используем тот же эндпоинт, что и для удаления участника
+        await eventAPI.removeParticipant(selectedEventDetail.id, Number(user?.id));
+        message.success('Вы покинули событие');
+        setIsEventDetailModalOpen(false);
+        await loadEvents();
+        await loadPendingInvitations();
+      } catch (error: any) {
+        message.error(error.response?.data?.detail || 'Не удалось покинуть событие');
+      }
+    },
+  });
+};
+
 
   if (isLoadingFamilies) {
     return (
@@ -589,6 +613,8 @@ return (
                         Удалить
                     </Button>
                     )}
+
+                    
                 </List.Item>
                 )}
             />
@@ -632,6 +658,17 @@ return (
                 </Button>
             </div>
             )}
+
+            {!isEventAdmin && (
+                    <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button 
+                        danger
+                        onClick={handleLeaveEvent}
+                        >
+                        Покинуть событие
+                        </Button>
+                    </div>
+                )}
             </>
         )}
         </Modal>
