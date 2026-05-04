@@ -116,7 +116,10 @@ async def update_chat(
             detail="Чат не найден"
         )
 
-    return chat
+    response = ChatResponse.model_validate(chat)
+    response.is_admin = True
+    response.members_count = len(chat.members) if hasattr(chat, 'members') else 0
+    return response
 
 
 @router.delete("/{chat_id}")

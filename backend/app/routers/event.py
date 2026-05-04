@@ -321,10 +321,10 @@ async def remove_participant(
     """
     Удалить участника из события (только создатель).
     """
-    if not event_crud.is_event_admin(db, current_user.id, event_id):
+    if not (event_crud.is_event_admin(db, current_user.id, event_id) or current_user.id == user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только создатель может удалять участников"
+            detail="У вас нет прав на удаление этого участника"
         )
 
     success = event_crud.remove_participant(db, event_id, user_id)

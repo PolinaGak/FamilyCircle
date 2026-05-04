@@ -80,7 +80,8 @@ class ChatCRUD:
             return None
 
         if update_data.title is not None:
-            chat.title = update_data.title.strip()
+            stripped_title = update_data.title.strip()
+            chat.title = stripped_title if stripped_title else None
 
         db.commit()
         db.refresh(chat)
