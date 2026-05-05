@@ -183,6 +183,10 @@ class EventCRUD:
         if not participant:
             raise ValueError("Приглашение не найдено")
 
+        if accept and participant.status == InvitationStatus.accepted:
+            return participant
+        if not accept and participant.status == InvitationStatus.declined:
+            return participant
         if participant.status != InvitationStatus.invited:
             raise ValueError("Вы уже ответили на это приглашение")
 

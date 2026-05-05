@@ -141,6 +141,14 @@ class InvitationCRUD:
         if invitation.invitation_type == 'new_member':
             from backend.app.schemas.family_member import FamilyMemberCreate
 
+            existing_member = db.query(FamilyMember).filter(
+                FamilyMember.family_id == invitation.family_id,
+                FamilyMember.user_id == claiming_user_id,
+                FamilyMember.is_active == True
+            ).first()
+            if existing_member:
+                return False, "Вы уже являетесь членом этой семьи", None
+
             member_data = FamilyMemberCreate(
                 first_name="Новый",
                 last_name="Член семьи",

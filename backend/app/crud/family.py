@@ -200,6 +200,16 @@ class FamilyCRUD:
             created_by_user_id: int
     ) -> FamilyMember:
         try:
+            # ИСПРАВЛЕНИЕ: запрет дублирования членства
+            if member_data.user_id:
+                existing_active = db.query(FamilyMember).filter(
+                    FamilyMember.family_id == family_id,
+                    FamilyMember.user_id == member_data.user_id,
+                    FamilyMember.is_active == True
+                ).first()
+                if existing_active:
+                    raise ValueError("Вы уже являетесь членом этой семьи")
+
             related_member = None
             if member_data.related_member_id:
                 from backend.app.models.relationship import Relationship
@@ -211,9 +221,6 @@ class FamilyCRUD:
 
                 if not related_member:
                     raise ValueError("Указанный связанный член семьи не найден или принадлежит другой семье")
-
-                if member_data.relationship_type:
-                    self._validate_gender_consistency(related_member, member_data.relationship_type)
 
             member = FamilyMember(
                 family_id=family_id,
@@ -240,6 +247,13 @@ class FamilyCRUD:
                 from backend.app.models.relationship import Relationship
                 from backend.app.crud.tree import tree_crud
 
+                if member_data.relationship_type in [
+                    RelationshipType.son, RelationshipType.daughter,
+                    RelationshipType.brother, RelationshipType.sister
+                ]:
+                    self._validate_gender_consistency(member, member_data.relationship_type)
+
+                # Проверка циклов для родительских связей
                 if member_data.relationship_type in [RelationshipType.father, RelationshipType.mother]:
                     if self._would_create_ancestor_cycle(db, member_data.related_member_id, member.id):
                         raise ValueError(
@@ -261,6 +275,7 @@ class FamilyCRUD:
                 )
                 db.add(rel)
 
+                # Определение обратной связи
                 if member_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                     reverse_type = tree_crud._get_reverse_relationship(
                         member_data.relationship_type,
@@ -273,7 +288,10 @@ class FamilyCRUD:
                     )
 
                 if reverse_type:
-                    self._validate_gender_consistency(member, reverse_type)
+                    if reverse_type in [RelationshipType.father, RelationshipType.mother]:
+                        self._validate_gender_consistency(related_member, reverse_type)
+                    elif reverse_type in [RelationshipType.brother, RelationshipType.sister]:
+                        self._validate_gender_consistency(member, reverse_type)
 
                     existing_reverse = db.query(Relationship).filter(
                         Relationship.from_member_id == member.id,
@@ -318,6 +336,16 @@ class FamilyCRUD:
         """
         from backend.app.models.relationship import Relationship
         from backend.app.crud.tree import tree_crud
+
+        if sibling_data.get('user_id'):
+            existing = db.query(FamilyMember).filter(
+                FamilyMember.family_id == family_id,
+                FamilyMember.user_id == sibling_data['user_id'],
+                FamilyMember.is_active == True
+            ).first()
+            if existing:
+                raise ValueError("Пользователь уже является членом этой семьи")
+
         existing = db.query(FamilyMember).filter(
             FamilyMember.id == existing_member_id,
             FamilyMember.family_id == family_id
@@ -357,6 +385,11 @@ class FamilyCRUD:
         db.flush()
 
         existing_rel_type = RelationshipType.brother if existing.gender == Gender.male else RelationshipType.sister
+
+        if sibling_rel_type in [RelationshipType.brother, RelationshipType.sister]:
+            FamilyCRUD._validate_gender_consistency(member, sibling_rel_type)
+        if existing_rel_type in [RelationshipType.brother, RelationshipType.sister]:
+            FamilyCRUD._validate_gender_consistency(existing, existing_rel_type)
 
         rel1 = Relationship(
             from_member_id=existing_member_id,
@@ -473,6 +506,15 @@ class FamilyCRUD:
         """
         from backend.app.models.relationship import Relationship
         from backend.app.crud.tree import tree_crud
+
+        if parent_data.get('user_id'):
+            existing = db.query(FamilyMember).filter(
+                FamilyMember.family_id == family_id,
+                FamilyMember.user_id == parent_data['user_id'],
+                FamilyMember.is_active == True
+            ).first()
+            if existing:
+                raise ValueError("Пользователь уже является членом этой семьи")
 
         if parent_data.get('gender') == Gender.male:
             parent_rel_type = RelationshipType.father
