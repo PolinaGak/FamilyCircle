@@ -266,7 +266,7 @@ const FamilyPage: React.FC = () => {
       console.log('Удаление отменено'); 
       return;
     }
-    console.log('Отправка DELETE запроса...'); 
+    
     try {
       const response = await familyAPI.removeMember(memberId);
       console.log('Ответ:', response); 

@@ -279,7 +279,7 @@ class FamilyCRUD:
                 if member_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                     reverse_type = tree_crud._get_reverse_relationship(
                         member_data.relationship_type,
-                        related_member.gender
+                        member.gender
                     )
                 else:
                     reverse_type = tree_crud._get_reverse_relationship(
@@ -289,7 +289,7 @@ class FamilyCRUD:
 
                 if reverse_type:
                     if reverse_type in [RelationshipType.father, RelationshipType.mother]:
-                        self._validate_gender_consistency(related_member, reverse_type)
+                        self._validate_gender_consistency(member, reverse_type)
                     elif reverse_type in [RelationshipType.brother, RelationshipType.sister]:
                         self._validate_gender_consistency(member, reverse_type)
 
@@ -681,7 +681,7 @@ class FamilyCRUD:
 
                     if update_data.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                         reverse_type = tree_crud._get_reverse_relationship(
-                            update_data.relationship_type, related.gender
+                            update_data.relationship_type, member.gender
                         )
                     elif update_data.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
                         reverse_type = tree_crud._get_reverse_relationship(

@@ -39,21 +39,7 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
     }
   };
 
-  // Фильтрация родственников в зависимости от выбранной роли нового члена
-  const getFilteredMembers = () => {
-    if (!selectedRelationship) return [];
-
-    // Для брата/сестры родственник должен быть соотв. пола
-    if (selectedRelationship === 'brother') {
-      return familyMembers.filter(m => m.gender === 'male');
-    }
-    if (selectedRelationship === 'sister') {
-      return familyMembers.filter(m => m.gender === 'female');
-    }
-
-    // Для остальных ролей показываем всех
-    return familyMembers;
-  };
+  
 
   const handleRelationshipChange = (value: string | undefined) => {
     setSelectedRelationship(value);
@@ -229,9 +215,9 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
             filterOption={(input, option) =>
               (String(option?.label ?? '')).toLowerCase().includes(input.toLowerCase())
             }
-            notFoundContent={getFilteredMembers().length === 0 ? 'Нет подходящих кандидатов' : 'Нет членов семьи'}
+            notFoundContent="Нет членов семьи"
           >
-            {getFilteredMembers().map((member) => (
+            {familyMembers.map((member) => (
               <Select.Option
                 key={member.id}
                 value={member.id}

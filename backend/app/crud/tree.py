@@ -361,31 +361,34 @@ class TreeCRUD:
         spouses = []
         siblings = []
 
+        
         outgoing = db.query(Relationship).filter(Relationship.from_member_id == member_id).all()
-
-        incoming = db.query(Relationship).filter(Relationship.to_member_id == member_id).all()
 
         for rel in outgoing:
             target = db.query(FamilyMember).filter(FamilyMember.id == rel.to_member_id).first()
             if not target:
                 continue
 
+            
             if rel.relationship_type in [RelationshipType.father, RelationshipType.mother]:
-                parents.append({
-                    "id": target.id,
-                    "first_name": target.first_name,
-                    "last_name": target.last_name,
-                    "patronymic": target.patronymic,
-                    "gender": target.gender.value if target.gender else None,
-                    "relationship_type": rel.relationship_type.value
-                })
-            elif rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                 children.append({
                     "id": target.id,
                     "first_name": target.first_name,
                     "last_name": target.last_name,
                     "patronymic": target.patronymic,
                     "gender": target.gender.value if target.gender else None,
+                    "relationship_type": rel.relationship_type.value  # "father"/"mother"
+                })
+            
+            elif rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
+                parent_type = "father" if target.gender == Gender.male else "mother"
+                parents.append({
+                    "id": target.id,
+                    "first_name": target.first_name,
+                    "last_name": target.last_name,
+                    "patronymic": target.patronymic,
+                    "gender": target.gender.value if target.gender else None,
+                    "relationship_type": parent_type
                 })
             elif rel.relationship_type in [RelationshipType.spouse, RelationshipType.partner]:
                 spouses.append({
@@ -400,26 +403,46 @@ class TreeCRUD:
                     "last_name": target.last_name,
                 })
 
+        
+        incoming = db.query(Relationship).filter(Relationship.to_member_id == member_id).all()
+
         for rel in incoming:
             source = db.query(FamilyMember).filter(FamilyMember.id == rel.from_member_id).first()
             if not source:
                 continue
 
-            if rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
+            
+            if rel.relationship_type in [RelationshipType.father, RelationshipType.mother]:
+                parent_type = "father" if source.gender == Gender.male else "mother"
                 if not any(p["id"] == source.id for p in parents):
-                    parent_type = RelationshipType.father if source.gender == Gender.male else RelationshipType.mother
                     parents.append({
                         "id": source.id,
                         "first_name": source.first_name,
                         "last_name": source.last_name,
                         "patronymic": source.patronymic,
                         "gender": source.gender.value if source.gender else None,
-                        "relationship_type": parent_type.value
+                        "relationship_type": parent_type
                     })
-
-            elif rel.relationship_type in [RelationshipType.father, RelationshipType.mother]:
+            
+            elif rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
                 if not any(c["id"] == source.id for c in children):
                     children.append({
+                        "id": source.id,
+                        "first_name": source.first_name,
+                        "last_name": source.last_name,
+                        "patronymic": source.patronymic,
+                        "gender": source.gender.value if source.gender else None,
+                    })
+            elif rel.relationship_type in [RelationshipType.spouse, RelationshipType.partner]:
+                if not any(s["id"] == source.id for s in spouses):
+                    spouses.append({
+                        "id": source.id,
+                        "first_name": source.first_name,
+                        "last_name": source.last_name,
+                    })
+            elif rel.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
+                if not any(sib["id"] == source.id for sib in siblings):
+                    siblings.append({
                         "id": source.id,
                         "first_name": source.first_name,
                         "last_name": source.last_name,
