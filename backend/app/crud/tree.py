@@ -345,8 +345,15 @@ class TreeCRUD:
 
         if not (is_admin or is_self):
             raise ValueError("Нет прав на удаление связи")
+        
+        reverse_rel = db.query(Relationship).filter(
+            Relationship.from_member_id == rel.to_member_id,
+            Relationship.to_member_id == rel.from_member_id
+        ).first()
 
         db.delete(rel)
+        if reverse_rel:
+            db.delete(reverse_rel)
         db.commit()
         return True
 
@@ -377,7 +384,8 @@ class TreeCRUD:
                     "last_name": target.last_name,
                     "patronymic": target.patronymic,
                     "gender": target.gender.value if target.gender else None,
-                    "relationship_type": rel.relationship_type.value  # "father"/"mother"
+                    "relationship_type": rel.relationship_type.value,  # "father"/"mother"
+                    "relationship_id": rel.id
                 })
             
             elif rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
@@ -388,19 +396,22 @@ class TreeCRUD:
                     "last_name": target.last_name,
                     "patronymic": target.patronymic,
                     "gender": target.gender.value if target.gender else None,
-                    "relationship_type": parent_type
+                    "relationship_type": parent_type,
+                    "relationship_id": rel.id
                 })
             elif rel.relationship_type in [RelationshipType.spouse, RelationshipType.partner]:
                 spouses.append({
                     "id": target.id,
                     "first_name": target.first_name,
                     "last_name": target.last_name,
+                    "relationship_id": rel.id
                 })
             elif rel.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
                 siblings.append({
                     "id": target.id,
                     "first_name": target.first_name,
                     "last_name": target.last_name,
+                    "relationship_id": rel.id
                 })
 
         
@@ -421,7 +432,8 @@ class TreeCRUD:
                         "last_name": source.last_name,
                         "patronymic": source.patronymic,
                         "gender": source.gender.value if source.gender else None,
-                        "relationship_type": parent_type
+                        "relationship_type": parent_type,
+                        "relationship_id": rel.id
                     })
             
             elif rel.relationship_type in [RelationshipType.son, RelationshipType.daughter]:
@@ -432,6 +444,7 @@ class TreeCRUD:
                         "last_name": source.last_name,
                         "patronymic": source.patronymic,
                         "gender": source.gender.value if source.gender else None,
+                        "relationship_id": rel.id
                     })
             elif rel.relationship_type in [RelationshipType.spouse, RelationshipType.partner]:
                 if not any(s["id"] == source.id for s in spouses):
@@ -439,6 +452,7 @@ class TreeCRUD:
                         "id": source.id,
                         "first_name": source.first_name,
                         "last_name": source.last_name,
+                        "relationship_id": rel.id
                     })
             elif rel.relationship_type in [RelationshipType.brother, RelationshipType.sister]:
                 if not any(sib["id"] == source.id for sib in siblings):
@@ -446,6 +460,7 @@ class TreeCRUD:
                         "id": source.id,
                         "first_name": source.first_name,
                         "last_name": source.last_name,
+                        "relationship_id": rel.id
                     })
 
         return {

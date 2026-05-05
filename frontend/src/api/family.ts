@@ -52,6 +52,7 @@ export interface RelativesGroup {
     patronymic?: string;
     gender?: string;
     relationship_type: string;
+    relationship_id?: number;
   }>;
   children: Array<{
     id: number;
@@ -59,37 +60,36 @@ export interface RelativesGroup {
     last_name: string;
     patronymic?: string;
     gender?: string;
+    relationship_id?: number;
   }>;
   spouses: Array<{
     id: number;
     first_name: string;
     last_name: string;
+    relationship_id?: number;
   }>;
   siblings: Array<{
     id: number;
     first_name: string;
     last_name: string;
+    relationship_id?: number;
   }>;
 }
 
 export const familyAPI = {
-  //Создать семью
+  
   create: (name: string) =>
     apiClient.post<Family>('/family/create', { name }),
   
-  //Получить все семьи пользователя
   getMyFamilies: () =>
     apiClient.get<Family[]>('/family/my'),
   
-  //Получить детали семьи
   getFamilyDetail: (familyId: number) =>
     apiClient.get<Family>(`/family/${familyId}`),
   
-  //Получить всех членов семьи
   getFamilyMembers: (familyId: number) =>
     apiClient.get<FamilyMember[]>(`/family/${familyId}/members`),
 
-  //Создать карточку родственника
   createMember: (familyId: number, data: CreateMemberData) => {
     return apiClient.post(`/family/${familyId}/member`, data);
   },
@@ -113,20 +113,28 @@ export const familyAPI = {
   apiClient.put<Family>(`/family/${familyId}`, { name }),
 
   updateMember: (memberId: number, data: {
-  first_name: string;
-  last_name: string;
-  patronymic?: string;
-  gender: 'male' | 'female';
-  birth_date: string;
-  death_date?: string;
-  phone?: string;
-  workplace?: string;
-  residence?: string;
-  is_active?: boolean;
-}) => apiClient.put(`/family/member/${memberId}`, data),
+    first_name?: string;
+    last_name?: string;
+    patronymic?: string;
+    gender?: 'male' | 'female';
+    birth_date?: string;
+    death_date?: string;
+    phone?: string;
+    workplace?: string;
+    residence?: string;
+    is_active?: boolean;
+    related_member_id?: number;
+    relationship_type?: string;
 
- getMemberRelatives: (familyId: number, memberId: number) => {
-  return apiClient.get(`/family/${familyId}/tree/member/${memberId}/relatives`);
-}
+  }) => apiClient.put(`/family/member/${memberId}`, data),
+
+
+  getMemberRelatives: (familyId: number, memberId: number) => {
+    return apiClient.get(`/family/${familyId}/tree/member/${memberId}/relatives`);
+  },
+
+  deleteRelationship: (familyId: number, relationshipId: number) => {
+    return apiClient.delete(`/family/${familyId}/tree/relationship/${relationshipId}`);
+  },
 
 }

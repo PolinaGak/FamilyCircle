@@ -8,6 +8,7 @@ import { invitationAPI, Invitation } from '../api/invitation';
 import { useAuth } from '../contexts/AuthContext';
 import { EditOutlined } from '@ant-design/icons';
 import AddFamilyMemberModal from '../components/AddFamilyMemberModal';
+import EditFamilyMemberModal from '../components/EditFamilyMemberModal';
 
 const { Title } = Typography;
 const FamilyPage: React.FC = () => {
@@ -43,6 +44,8 @@ const FamilyPage: React.FC = () => {
   const [relativesMap, setRelativesMap] = useState<Record<number, RelativesGroup>>({});
   const [loadingRelatives, setLoadingRelatives] = useState(false);
   const [unlinkedMembers, setUnlinkedMembers] = useState<FamilyMember[]>([]);
+  const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const loadFamilyData = async () => {
     if (!id) return;
     
@@ -516,15 +519,51 @@ const FamilyPage: React.FC = () => {
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     {member.user_id === Number(user?.id) && <span style={{ color: '#666' }}>Это вы</span>}
                     
-                    {/* Кнопки управления (без изменений) */}
+                    {/* Кнопки управления*/}
+                    {(isAdmin || member.user_id === Number(user?.id)) && (
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingMember(member);
+                          setIsEditMemberModalOpen(true);
+                        }}
+                      >
+                        Редактировать
+                      </Button>
+                    )}
+
                     {isAdmin && !member.approved && !member.user_id && (
-                      <Button size="small" type="primary" onClick={(e) => { e.stopPropagation(); handleApproveMember(member.id, `${member.first_name} ${member.last_name}`); }} style={{ background: '#7b68ee' }}>Подтвердить</Button>
+                      <Button size="small" type="primary" onClick={(e) => 
+                        { 
+                          e.stopPropagation(); 
+                          handleApproveMember(member.id, `${member.first_name} ${member.last_name}`); 
+                        }} 
+                        style={{ background: '#7b68ee' }}
+                        >
+                          Подтвердить
+                          </Button>
                     )}
                     {isAdmin && !member.is_admin && member.user_id !== null && (
-                      <Button size="small" type="primary" style={{ background: '#7b68ee' }} onClick={(e) => { e.stopPropagation(); handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`); }}>Сделать админом</Button>
+                      <Button size="small" type="primary" 
+                      style={{ background: '#7b68ee' }} onClick={(e) => 
+                        {
+                           e.stopPropagation(); 
+                           handleTransferAdmin(member.id, `${member.first_name} ${member.last_name}`); 
+                        }}
+                           >
+                            Сделать админом
+                      </Button>
                     )}
                     {isAdmin && member.user_id !== Number(user?.id) && (
-                      <Button size="small" danger onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`); }}>Исключить</Button>
+                      <Button size="small" danger onClick={(e) => 
+                        { e.stopPropagation(); 
+                          handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`); 
+                      }}
+                      >
+                        Исключить
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -871,6 +910,23 @@ const FamilyPage: React.FC = () => {
         autoFocus
       />
     </Modal>
+    <EditFamilyMemberModal
+      open={isEditMemberModalOpen}
+      member={editingMember}
+      familyId={Number(id)}
+      members={members}
+      relatives={editingMember ? relativesMap[editingMember.id] || null : null}
+      onClose={() => {
+        setIsEditMemberModalOpen(false);
+        setEditingMember(null);
+      }}
+      onSuccess={() => {
+        loadFamilyData();
+        setRelativesMap({});
+        setIsEditMemberModalOpen(false);
+        setEditingMember(null);
+      }}
+    />
 
     <AddFamilyMemberModal
         open={isAddMemberModalOpen}
@@ -881,6 +937,8 @@ const FamilyPage: React.FC = () => {
         }}
       />
     </div>
+
+    
   );
 };
 
