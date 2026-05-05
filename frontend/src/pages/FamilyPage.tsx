@@ -21,7 +21,7 @@ const FamilyPage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
-  const [invitationType, setInvitationType] = useState<'new' | 'claim'>('new');
+  const [invitationType, setInvitationType] = useState<'new' | 'claim' | 'existing'>('new');
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [inviteFormData, setInviteFormData] = useState({
@@ -33,13 +33,16 @@ const FamilyPage: React.FC = () => {
     phone: '',
     workplace: '',
     residence: '',
+    relationship_type: undefined as string | undefined,
+    related_member_id: undefined as number | undefined,
+
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFamilyName, setEditFamilyName] = useState('');
   const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
   const [relativesMap, setRelativesMap] = useState<Record<number, RelativesGroup>>({});
   const [loadingRelatives, setLoadingRelatives] = useState(false);
-
+  const [unlinkedMembers, setUnlinkedMembers] = useState<FamilyMember[]>([]);
   const loadFamilyData = async () => {
     if (!id) return;
     
@@ -49,7 +52,8 @@ const FamilyPage: React.FC = () => {
       
       const membersResponse = await familyAPI.getFamilyMembers(Number(id));
       setMembers(membersResponse.data);
-      
+      const unlinked = membersResponse.data.filter(m => !m.user_id);
+      setUnlinkedMembers(unlinked);
       const currentMember = membersResponse.data.find(m => m.user_id === Number(user?.id));
       const adminStatus = currentMember?.is_admin || false;
       setIsAdmin(adminStatus);
@@ -70,41 +74,65 @@ const FamilyPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+
+
   };
 
-// 2. Затем используем её в useEffect
+
   useEffect(() => {
     loadFamilyData();
   }, [id, user?.id]);
+
+  //функция для обновления списка непривязанных карточек
+  const refreshUnlinkedMembers = () => {
+    const unlinked = members.filter(m => !m.user_id);
+    setUnlinkedMembers(unlinked);
+  };
+
+  const getApiRelationshipType = (selectedRole: string, relatedMember: FamilyMember): string => {
+    switch (selectedRole) {
+      case 'father':
+      case 'mother':
+        return relatedMember.gender === 'male' ? 'son' : 'daughter';
+      case 'son':
+      case 'daughter':
+        return relatedMember.gender === 'male' ? 'father' : 'mother';
+      case 'brother':
+      case 'sister':
+        return selectedRole;
+      case 'spouse':
+      case 'partner':
+        return selectedRole;
+      default:
+        return selectedRole;
+    }
+  };
+
   
 
   //создание карточки и приглашения
   const handleCreateInvitation = async () => {
     if (!id) return;
-    
     setIsCreatingInvite(true);
-    
+
     try {
-      let invitationResponse;
-      
       if (invitationType === 'new') {
-        //для нового:
-        invitationResponse = await invitationAPI.createNewMemberInvitation(Number(id), 7);
+        // Без создания карточки
+        const invitationResponse = await invitationAPI.createNewMemberInvitation(Number(id), 7);
+        setInviteCode(invitationResponse.data.code);
         message.success('Код приглашения создан!');
-        
-      } else {
-        // для существующего:
-        // Валидация формы
+      } 
+      else if (invitationType === 'claim') {
+        // Создание карточки с возможной связью
         if (!inviteFormData.first_name || !inviteFormData.last_name || !inviteFormData.birth_date) {
           message.warning('Пожалуйста, заполните обязательные поля (Имя, Фамилия, Дата рождения)');
           setIsCreatingInvite(false);
           return;
         }
-        
+
         const birthDate = new Date(inviteFormData.birth_date).toISOString();
-        
-        // Создаем карточку родственника
-        const memberResponse = await familyAPI.createMember(Number(id), {
+
+        const memberPayload: any = {
           first_name: inviteFormData.first_name,
           last_name: inviteFormData.last_name,
           patronymic: inviteFormData.patronymic || undefined,
@@ -114,25 +142,56 @@ const FamilyPage: React.FC = () => {
           workplace: inviteFormData.workplace || undefined,
           residence: inviteFormData.residence || undefined,
           is_admin: false,
-        } as any);
-        
+        };
+
+        // Если указана связь
+        if (inviteFormData.relationship_type && inviteFormData.related_member_id) {
+          const relatedMember = members.find(m => m.id === inviteFormData.related_member_id);
+          if (!relatedMember) {
+            message.error('Выбранный родственник не найден');
+            setIsCreatingInvite(false);
+            return;
+          }
+          memberPayload.related_member_id = relatedMember.id;
+          memberPayload.relationship_type = getApiRelationshipType(inviteFormData.relationship_type, relatedMember);
+        }
+
+        const memberResponse = await familyAPI.createMember(Number(id), memberPayload);
         message.success('Карточка создана!');
-        invitationResponse = await invitationAPI.createClaimMemberInvitation(
-          Number(id), 
+
+        const invitationResponse = await invitationAPI.createClaimMemberInvitation(
+          Number(id),
           memberResponse.data.id,
           7
         );
+        setInviteCode(invitationResponse.data.code);
         message.success('Код приглашения создан!');
+
+        // Обновить список членов
         const membersResponse = await familyAPI.getFamilyMembers(Number(id));
         setMembers(membersResponse.data);
+      } 
+      else if (invitationType === 'existing') {
+        // Приглашение для существующей непривязанной карточки
+        const selectedMemberId = inviteFormData.related_member_id; // используем это поле для хранения выбранного ID
+        if (!selectedMemberId) {
+          message.warning('Выберите карточку из списка');
+          setIsCreatingInvite(false);
+          return;
+        }
+        const invitationResponse = await invitationAPI.createClaimMemberInvitation(
+          Number(id),
+          selectedMemberId,
+          7
+        );
+        setInviteCode(invitationResponse.data.code);
+        message.success('Код приглашения создан!');
       }
-      
-      setInviteCode(invitationResponse.data.code);
-      
+
+      // Обновить список приглашений
       const invitationsResponse = await invitationAPI.getFamilyInvitations(Number(id));
-      const activeInvitations = filterActiveInvitations(invitationsResponse.data);
-      setInvitations(activeInvitations);
-      
+      setInvitations(invitationsResponse.data.filter((inv: Invitation) => inv.is_active === true));
+
     } catch (error: any) {
       console.error('Ошибка:', error);
       const errorDetail = error.response?.data?.detail;
@@ -182,6 +241,9 @@ const FamilyPage: React.FC = () => {
       phone: '',
       workplace: '',
       residence: '',
+      relationship_type: undefined as string | undefined,
+      related_member_id: undefined as number | undefined,
+
     });
   };
 
@@ -583,30 +645,32 @@ const FamilyPage: React.FC = () => {
           <div>
             {/*переключатель типа приглашения*/}
             <Form.Item label="Тип приглашения" required style={{ marginBottom: '16px' }}>
-              <Radio.Group 
-                value={invitationType} 
+              <Radio.Group
+                value={invitationType}
                 onChange={(e) => {
-                  setInvitationType(e.target.value)
-                  if (e.target.value === 'new') {
-                    setInviteFormData({
-                      first_name: '',
-                      last_name: '',
-                      patronymic: '',
-                      birth_date: '',
-                      gender: 'male',
-                      phone: '',
-                      workplace: '',
-                      residence: '',
-                    });
+                  setInvitationType(e.target.value);
+                  setInviteFormData({
+                    first_name: '',
+                    last_name: '',
+                    patronymic: '',
+                    birth_date: '',
+                    gender: 'male',
+                    phone: '',
+                    workplace: '',
+                    residence: '',
+                    relationship_type: undefined,
+                    related_member_id: undefined,
+                  });
+                  if (e.target.value === 'existing') {
+                    // Обновить список непривязанных
+                    const unlinked = members.filter(m => !m.user_id);
+                    setUnlinkedMembers(unlinked);
                   }
                 }}
               >
-                <Radio value="new">
-                  Без создания карточки
-                </Radio>
-                <Radio value="claim">
-                  С созданием карточки
-                </Radio>
+                <Radio value="new">Без создания карточки</Radio>
+                <Radio value="claim">С созданием карточки</Radio>
+                <Radio value="existing">Выбрать существующую карточку</Radio>
               </Radio.Group>
             </Form.Item>
 
@@ -674,6 +738,43 @@ const FamilyPage: React.FC = () => {
                       placeholder="Необязательно"
                     />
                   </Form.Item>
+                  <Form.Item label="Тип связи (необязательно)">
+                    <Select
+                      allowClear
+                      placeholder="Кем будет новый член для выбранного родственника"
+                      value={inviteFormData.relationship_type}
+                      onChange={(value) => setInviteFormData({...inviteFormData, relationship_type: value})}
+                    >
+                      <Select.Option value="father">Отец</Select.Option>
+                      <Select.Option value="mother">Мать</Select.Option>
+                      <Select.Option value="son">Сын</Select.Option>
+                      <Select.Option value="daughter">Дочь</Select.Option>
+                      <Select.Option value="brother">Брат</Select.Option>
+                      <Select.Option value="sister">Сестра</Select.Option>
+                      <Select.Option value="spouse">Супруг(а)</Select.Option>
+                      <Select.Option value="partner">Партнёр</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item label="Родственник (необязательно)">
+                    <Select
+                      allowClear
+                      placeholder="Выберите родственника"
+                      disabled={!inviteFormData.relationship_type}
+                      value={inviteFormData.related_member_id}
+                      onChange={(value) => setInviteFormData({...inviteFormData, related_member_id: value})}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (String(option?.label ?? '')).toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {members.map((member) => (
+                        <Select.Option key={member.id} value={member.id} label={`${member.last_name} ${member.first_name}`}>
+                          {member.last_name} {member.first_name} {member.patronymic || ''}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Form>
               </>
             )}
@@ -691,6 +792,33 @@ const FamilyPage: React.FC = () => {
                 </p>
               </div>
             )}
+            {invitationType === 'existing' && (
+            <div>
+              <p>Выберите непривязанную карточку для приглашения:</p>
+              {unlinkedMembers.length === 0 ? (
+                <p style={{ color: '#999' }}>Нет непривязанных карточек. Сначала создайте карточку через «Добавить члена семьи».</p>
+              ) : (
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="Выберите карточку"
+                  value={inviteFormData.related_member_id}
+                  onChange={(value) => setInviteFormData({...inviteFormData, related_member_id: value})}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (String(option?.label ?? '')).toLowerCase().includes(input.toLowerCase())
+                  }
+                >
+                  {unlinkedMembers.map((m) => (
+                    <Select.Option key={m.id} value={m.id} label={`${m.last_name} ${m.first_name}`}>
+                      {m.last_name} {m.first_name} {m.patronymic || ''}
+                      {m.birth_date ? ` (${new Date(m.birth_date).getFullYear()})` : ''}
+                    </Select.Option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          )}
+
             <Button 
               type="primary" 
               onClick={handleCreateInvitation}

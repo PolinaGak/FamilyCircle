@@ -29,7 +29,7 @@ const JoinFamilyPage: React.FC = () => {
         
         if (response.data.member_id) {
           localStorage.setItem('pendingMemberId', String(response.data.member_id));
-          
+          localStorage.setItem('pendingFamilyId', String(response.data.family_id));
         }
         
         if (response.data.requires_profile_completion) {
