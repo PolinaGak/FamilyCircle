@@ -134,7 +134,7 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  // Функция для определения, является ли сообщение своим
+  
   const isMyMessage = (msg: Message): boolean => {
     if (!msg.sender_user_id || !user?.id) return false;
     return Number(msg.sender_user_id) === Number(user.id);
@@ -689,11 +689,35 @@ const handleLeaveChat = () => {
         <Select
           placeholder="Выберите участника"
           style={{ width: '100%' }}
-          onChange={(value) => setSelectedUserId(value)}
+          
+          onChange={(value) => {
+            console.log('Выбран участник с ID:', value);
+            setSelectedUserId(value);
+          }}
           options={availableMembers.map((member) => ({
             value: member.user_id,
             label: `${member.last_name} ${member.first_name}`,
           }))}
+        />
+      </Modal>
+
+      <Modal
+        title="Редактировать название чата"
+        open={isEditModalOpen}
+        onCancel={() => {
+          setIsEditModalOpen(false);
+          setEditChatName('');
+        }}
+        onOk={handleUpdateChat}
+        confirmLoading={isEditing}
+        okText="Сохранить"
+        cancelText="Отмена"
+      >
+        <Input
+          value={editChatName}
+          onChange={(e) => setEditChatName(e.target.value)}
+          placeholder="Название чата"
+          autoFocus
         />
       </Modal>
 

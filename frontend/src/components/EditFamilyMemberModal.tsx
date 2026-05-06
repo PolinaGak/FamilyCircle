@@ -142,8 +142,15 @@ const EditFamilyMemberModal: React.FC<EditFamilyMemberModalProps> = ({
         .forEach(c => items.push({ id: c.id, name: `${c.first_name} ${c.last_name}`, type, relationshipId: Number(c.relationship_id)  }));
     }
     
-    if (type === 'brother' || type === 'sister') {
-        relatives.siblings.forEach(s => items.push({ id: s.id, name: `${s.first_name} ${s.last_name}`, type, relationshipId: Number(s.relationship_id)  }));
+    if (type === 'brother') {
+        relatives.siblings
+            .filter(s => s.gender === 'male')
+            .forEach(s => items.push({ id: s.id, name: `${s.first_name} ${s.last_name}`, type, relationshipId: Number(s.relationship_id) }));
+    }
+    if (type === 'sister') {
+        relatives.siblings
+            .filter(s => s.gender === 'female')
+            .forEach(s => items.push({ id: s.id, name: `${s.first_name} ${s.last_name}`, type, relationshipId: Number(s.relationship_id) }));
     }
     
     if (type === 'spouse' || type === 'partner') {

@@ -105,6 +105,7 @@ const CalendarPage: React.FC = () => {
     }, [selectedFamilyId]);
 
     const loadAvailableMembersForEvent = async (eventId: number) => {
+        
         if (!selectedFamilyId) return;
         
         try {
@@ -362,7 +363,6 @@ const CalendarPage: React.FC = () => {
   }
 return (
   <div style={{ padding: '24px', height: 'calc(100vh - 64px)' }}>
-    {/* Заголовок с выбором семьи и кнопкой создания */}
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         

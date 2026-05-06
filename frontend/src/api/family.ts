@@ -73,6 +73,7 @@ export interface RelativesGroup {
     first_name: string;
     last_name: string;
     relationship_id?: number;
+    gender?: string; 
   }>;
 }
 
@@ -135,6 +136,17 @@ export const familyAPI = {
 
   deleteRelationship: (familyId: number, relationshipId: number) => {
     return apiClient.delete(`/family/${familyId}/tree/relationship/${relationshipId}`);
+  },
+
+  getFamilyTree: (familyId: number, rootMemberId?: number) => {
+    return apiClient.get(`/family/${familyId}/tree`, {
+      params: rootMemberId ? { root_member_id: rootMemberId } : {},
+    });
+  },
+
+  
+  getTreeRoots: (familyId: number) => {
+    return apiClient.get(`/family/${familyId}/tree/roots`);
   },
 
 }

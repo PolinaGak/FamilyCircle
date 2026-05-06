@@ -411,6 +411,7 @@ class TreeCRUD:
                     "id": target.id,
                     "first_name": target.first_name,
                     "last_name": target.last_name,
+                    "gender": target.gender.value if target.gender else None,
                     "relationship_id": rel.id
                 })
 
@@ -460,6 +461,7 @@ class TreeCRUD:
                         "id": source.id,
                         "first_name": source.first_name,
                         "last_name": source.last_name,
+                        "gender": source.gender.value if source.gender else None,
                         "relationship_id": rel.id
                     })
 
