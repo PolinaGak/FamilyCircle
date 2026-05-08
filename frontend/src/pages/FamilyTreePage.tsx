@@ -73,16 +73,20 @@ const FamilyNode: React.FC<{ data: any }> = ({ data }) => {
 
 const nodeTypes = { familyNode: FamilyNode };
 
-const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
+const getLayoutedElements = (
+  nodes: Node[],
+  edges: Edge[],
+  direction = 'TB',
+  minGen: number = 0
+) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction });
 
-  const nodeWidth = 160;
-  const nodeHeight = 60;
-
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    const generation: number = node.data.generation ?? 0;
+    const rank = generation - minGen; 
+    dagreGraph.setNode(node.id, { width: 160, height: 60, rank });
   });
 
   edges.forEach((edge) => {
@@ -94,8 +98,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+      x: nodeWithPosition.x - 80,
+      y: nodeWithPosition.y - 30,
     };
   });
 
@@ -160,20 +164,22 @@ const FamilyTreePage: React.FC = () => {
       }));
 
       setNodes(flowNodes);
-    const edgeMap = new Map<string, Edge>();
-    const priority = (type: string) => {
-    if (type === 'son' || type === 'daughter') return 1;
-    if (type === 'brother' || type === 'sister') return 2;
-    if (type === 'spouse' || type === 'partner') return 3;
-    return 4; 
-    };
+      const edgeMap = new Map<string, Edge>();
+      const priority = (type: string) => {
+        if (type === 'son' || type === 'daughter') return 1;
+        if (type === 'brother' || type === 'sister') return 2;
+        if (type === 'spouse' || type === 'partner') return 3;
+        return 4; 
+      };
 
-    flowEdges.forEach((edge) => {
-    const key = [edge.source, edge.target].sort().join('-'); 
-    const existing = edgeMap.get(key);
-    if (!existing || priority(edge.label as string) < priority(existing.label as string)) {
+      flowEdges.forEach((edge) => {
+      const key = [edge.source, edge.target].sort().join('-'); 
+      const existing = edgeMap.get(key);
+      if (!existing || priority(edge.label as string) < priority(existing.label as string)) {
         edgeMap.set(key, edge);
-    }
+    } 
+    
+    
     });
 
     const filteredEdges = Array.from(edgeMap.values());
