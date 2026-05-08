@@ -72,7 +72,7 @@ async def get_photo_file(
             detail="Файл не найден на диске"
         )
 
-    encoded_filename = quote(photo.original_filename or 'photo')
+    encoded_filename = quote(photo.original_filename or 'photo', safe='')
 
     return StreamingResponse(
         io.BytesIO(file_content),
