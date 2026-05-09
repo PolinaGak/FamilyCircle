@@ -3,13 +3,13 @@ import ReactFlow, { Node, Edge, Background, Controls, MiniMap } from 'reactflow'
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { familyAPI } from '../api/family';
-import { Spin, message, Select, Typography } from 'antd';
+import { Spin, message, Select, Typography, Alert } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
 import { Handle, Position } from 'reactflow';
 
 interface TreeNodeData {
   id: number;
-  first_name: string;
+  first_name: string;   
   last_name: string;
   patronymic?: string;
   birth_date?: string;
@@ -43,16 +43,33 @@ const FamilyNode: React.FC<{ data: any }> = ({ data }) => {
 
   return (
     <div style={containerStyle}>
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        style={{ background: '#b8a9e8', width: 8, height: 8 }}
-      />
+    
       <Handle
         type="source"
         position={Position.Top}
+        id="parent-source"
         style={{ background: '#b8a9e8', width: 8, height: 8 }}
       />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="parent-target"
+        style={{ background: '#b8a9e8', width: 8, height: 8 }}
+      />
+    
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="spouse-right"
+        style={{ background: '#b8a9e8', width: 8, height: 8, top: '50%', right: -4 }}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="spouse-left"
+        style={{ background: '#b8a9e8', width: 8, height: 8, top: '50%', left: -4 }}
+      />
+      
       <div style={{ fontWeight: 'bold' }}>
         {data.last_name} {data.first_name}
       </div>
@@ -100,15 +117,14 @@ const FamilyTreePage: React.FC = () => {
   const [selectedFamilyId, setSelectedFamilyId] = useState<number | undefined>(currentFamily?.id);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [spouseEdges, setSpouseEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoadingFamilies, setIsLoadingFamilies] = useState(true);
 
   useEffect(() => {
     const init = async () => {
       setIsLoadingFamilies(true);
-      if (families.length === 0) {
-        await loadUserFamilies();
-      }
+      if (families.length === 0) await loadUserFamilies();
       if (families.length > 0 && !selectedFamilyId) {
         const first = families[0];
         setSelectedFamilyId(first.id);
@@ -137,7 +153,8 @@ const FamilyTreePage: React.FC = () => {
         data: n,
       }));
 
-      const flowEdges: Edge[] = treeData.edges
+      
+      const mainEdges: Edge[] = treeData.edges
         .filter((e: TreeEdgeData) => e.type === 'son' || e.type === 'daughter')
         .map((e: TreeEdgeData) => ({
           id: `${e.from}-${e.to}`,
@@ -147,7 +164,32 @@ const FamilyTreePage: React.FC = () => {
         }));
 
       setNodes(flowNodes);
-      setEdges(flowEdges);
+      setEdges(mainEdges);
+
+      
+      const spouseSet = new Set<string>();
+      const spouseConnections: Edge[] = [];
+      treeData.edges
+        .filter((e: TreeEdgeData) => e.type === 'spouse' || e.type === 'partner')
+        .forEach((e: TreeEdgeData) => {
+          const key = [e.from, e.to].sort((a, b) => a - b).join('-');
+          if (!spouseSet.has(key)) {
+            spouseSet.add(key);
+            spouseConnections.push({
+                id: `spouse-${e.from}-${e.to}`,
+                source: e.from.toString(),
+                target: e.to.toString(),
+                sourceHandle: 'spouse-right',
+                targetHandle: 'spouse-left',
+                style: {
+                    stroke: '#b8a9e8',
+                    strokeWidth: 2,
+                    strokeDasharray: '5 5',
+                },
+                });
+          }
+        });
+      setSpouseEdges(spouseConnections);
     } catch (error) {
       message.error('Ошибка загрузки дерева');
       console.error(error);
@@ -164,8 +206,11 @@ const FamilyTreePage: React.FC = () => {
     }
   };
 
+  
+  const allEdges = useMemo(() => [...edges, ...spouseEdges], [edges, spouseEdges]);
+
   const positionedElements = useMemo(
-    () => getLayoutedElements(nodes, edges),
+    () => getLayoutedElements(nodes, edges), 
     [nodes, edges]
   );
 
@@ -194,6 +239,7 @@ const FamilyTreePage: React.FC = () => {
         <Typography.Title level={2} style={{ margin: '0 0 16px 0' }}>
           Семейное древо
         </Typography.Title>
+        
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontWeight: 500 }}>Семья:</span>
@@ -204,6 +250,12 @@ const FamilyTreePage: React.FC = () => {
               options={families.map(f => ({ value: f.id, label: f.name }))}
             />
           </div>
+          <Alert
+            message="Для корректного отображения дерева установите все семейные связи в разделе «Семья»"
+            type="info"
+            showIcon
+            style={{ marginTop: 12 }}
+            />
         </div>
       </div>
       <div style={{ flex: 1 }}>
@@ -214,7 +266,7 @@ const FamilyTreePage: React.FC = () => {
         ) : (
           <ReactFlow
             nodes={positionedElements.nodes}
-            edges={positionedElements.edges}
+            edges={allEdges}  
             nodeTypes={nodeTypes}
             fitView
             attributionPosition="bottom-right"
