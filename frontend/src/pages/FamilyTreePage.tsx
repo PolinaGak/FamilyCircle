@@ -1,17 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
-  Background,
-  Controls,
-  MiniMap,
-} from 'reactflow';
+import ReactFlow, { Node, Edge, Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { familyAPI } from '../api/family';
-import { Spin, message, Select, Typography, Card } from 'antd';
+import { Spin, message, Select, Typography } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
-import { Handle, Position } from 'reactflow'
+import { Handle, Position } from 'reactflow';
 
 interface TreeNodeData {
   id: number;
@@ -34,30 +28,31 @@ interface TreeEdgeData {
 }
 
 const FamilyNode: React.FC<{ data: any }> = ({ data }) => {
+  const isActive = data.is_active !== false;
+  const containerStyle: React.CSSProperties = {
+    padding: '10px 15px',
+    borderRadius: '8px',
+    background: isActive ? '#f0eaff' : '#e0e0e0',
+    border: `2px solid ${isActive ? '#b8a9e8' : '#9e9e9e'}`,
+    minWidth: '120px',
+    textAlign: 'center',
+    fontSize: '14px',
+    position: 'relative',
+    opacity: isActive ? 1 : 0.7,
+  };
+
   return (
-    <div style={{
-      padding: '10px 15px',
-      borderRadius: '8px',
-      background: '#f0eaff',
-      border: '2px solid #b8a9e8',
-      minWidth: '120px',
-      textAlign: 'center',
-      fontSize: '14px',
-      position: 'relative', 
-    }}>
-      
+    <div style={containerStyle}>
       <Handle
         type="target"
-        position={Position.Top}
-        style={{ background: '#b8a9e8', width: 8, height: 8 }}
-      />
-      
-      <Handle
-        type="source"
         position={Position.Bottom}
         style={{ background: '#b8a9e8', width: 8, height: 8 }}
       />
-
+      <Handle
+        type="source"
+        position={Position.Top}
+        style={{ background: '#b8a9e8', width: 8, height: 8 }}
+      />
       <div style={{ fontWeight: 'bold' }}>
         {data.last_name} {data.first_name}
       </div>
@@ -73,20 +68,14 @@ const FamilyNode: React.FC<{ data: any }> = ({ data }) => {
 
 const nodeTypes = { familyNode: FamilyNode };
 
-const getLayoutedElements = (
-  nodes: Node[],
-  edges: Edge[],
-  direction = 'TB',
-  minGen: number = 0
-) => {
+const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction });
+  dagreGraph.setGraph({ rankdir: 'BT' });
 
   nodes.forEach((node) => {
-    const generation: number = node.data.generation ?? 0;
-    const rank = generation - minGen; 
-    dagreGraph.setNode(node.id, { width: 160, height: 60, rank });
+    const generation = node.data.generation ?? 0;
+    dagreGraph.setNode(node.id, { width: 160, height: 60, rank: generation });
   });
 
   edges.forEach((edge) => {
@@ -111,42 +100,35 @@ const FamilyTreePage: React.FC = () => {
   const [selectedFamilyId, setSelectedFamilyId] = useState<number | undefined>(currentFamily?.id);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [rootId, setRootId] = useState<number | undefined>();
-  const [roots, setRoots] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoadingFamilies, setIsLoadingFamilies] = useState(true);
 
-  // Загружаем семьи при монтировании
   useEffect(() => {
-    const loadData = async () => {
+    const init = async () => {
       setIsLoadingFamilies(true);
       if (families.length === 0) {
         await loadUserFamilies();
       }
       if (families.length > 0 && !selectedFamilyId) {
-        const firstFamily = families[0];
-        setSelectedFamilyId(firstFamily.id);
-        setCurrentFamily(firstFamily);
+        const first = families[0];
+        setSelectedFamilyId(first.id);
+        setCurrentFamily(first);
       }
       setIsLoadingFamilies(false);
     };
-    loadData();
-  }, [families.length, loadUserFamilies, setCurrentFamily]);
+    init();
+  }, [families.length]);
 
-  // Загружаем дерево при смене семьи
   useEffect(() => {
-    if (selectedFamilyId) {
-      fetchTree(selectedFamilyId);
-      fetchRoots(selectedFamilyId);
-    }
+    if (!selectedFamilyId) return;
+    fetchTree(selectedFamilyId);
   }, [selectedFamilyId]);
 
-  const fetchTree = async (famId: number, rootMemberId?: number) => {
+  const fetchTree = async (famId: number) => {
     setLoading(true);
     try {
-      const response = await familyAPI.getFamilyTree(famId, rootMemberId);
+      const response = await familyAPI.getFamilyTree(famId, undefined, true);
       const treeData = response.data;
-      setRootId(treeData.root_id);
 
       const flowNodes: Node[] = treeData.nodes.map((n: TreeNodeData) => ({
         id: n.id.toString(),
@@ -155,37 +137,17 @@ const FamilyTreePage: React.FC = () => {
         data: n,
       }));
 
-      const flowEdges: Edge[] = treeData.edges.map((e: TreeEdgeData) => ({
-        id: `${e.from}-${e.to}`,
-        source: e.from.toString(),
-        target: e.to.toString(),
-        label: e.type,
-        style: { stroke: '#999' },
-      }));
+      const flowEdges: Edge[] = treeData.edges
+        .filter((e: TreeEdgeData) => e.type === 'son' || e.type === 'daughter')
+        .map((e: TreeEdgeData) => ({
+          id: `${e.from}-${e.to}`,
+          source: e.from.toString(),
+          target: e.to.toString(),
+          style: { stroke: '#b8a9e8', strokeWidth: 2 },
+        }));
 
       setNodes(flowNodes);
-      const edgeMap = new Map<string, Edge>();
-      const priority = (type: string) => {
-        if (type === 'son' || type === 'daughter') return 1;
-        if (type === 'brother' || type === 'sister') return 2;
-        if (type === 'spouse' || type === 'partner') return 3;
-        return 4; 
-      };
-
-      flowEdges.forEach((edge) => {
-      const key = [edge.source, edge.target].sort().join('-'); 
-      const existing = edgeMap.get(key);
-      if (!existing || priority(edge.label as string) < priority(existing.label as string)) {
-        edgeMap.set(key, edge);
-    } 
-    
-    
-    });
-
-    const filteredEdges = Array.from(edgeMap.values());
-    setEdges(filteredEdges);
-      
-    
+      setEdges(flowEdges);
     } catch (error) {
       message.error('Ошибка загрузки дерева');
       console.error(error);
@@ -194,35 +156,20 @@ const FamilyTreePage: React.FC = () => {
     }
   };
 
-  const fetchRoots = async (famId: number) => {
-    try {
-      const response = await familyAPI.getTreeRoots(famId);
-      setRoots(response.data);
-    } catch (error) {
-      console.error('Ошибка загрузки корней', error);
-    }
-  };
-
   const handleFamilyChange = (familyId: number) => {
-    const selected = families.find((f) => f.id === familyId);
+    const selected = families.find(f => f.id === familyId);
     if (selected) {
       setSelectedFamilyId(familyId);
       setCurrentFamily(selected);
     }
   };
 
-  const handleRootChange = (value: number) => {
-    if (selectedFamilyId) {
-      fetchTree(selectedFamilyId, value);
-    }
-  };
-
   const positionedElements = useMemo(
-    () => getLayoutedElements(nodes, edges, 'TB'),
+    () => getLayoutedElements(nodes, edges),
     [nodes, edges]
   );
 
-  if (isLoadingFamilies) {
+  if (isLoadingFamilies || !selectedFamilyId) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>
         <Spin size="large" />
@@ -242,8 +189,7 @@ const FamilyTreePage: React.FC = () => {
   }
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Шапка с заголовком и выбором семьи */}
+    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px 24px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
         <Typography.Title level={2} style={{ margin: '0 0 16px 0' }}>
           Семейное древо
@@ -255,31 +201,11 @@ const FamilyTreePage: React.FC = () => {
               value={selectedFamilyId}
               onChange={handleFamilyChange}
               style={{ width: 220 }}
-              options={families.map((f) => ({ value: f.id, label: f.name }))}
+              options={families.map(f => ({ value: f.id, label: f.name }))}
             />
           </div>
-          {roots.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontWeight: 500 }}>Корень дерева:</span>
-              <Select
-                value={rootId}
-                onChange={handleRootChange}
-                style={{ width: 250 }}
-                showSearch
-                filterOption={(input, option) =>
-                  String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                options={roots.map((root) => ({
-                  value: root.id,
-                  label: root.name,
-                }))}
-              />
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Область дерева */}
       <div style={{ flex: 1 }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>

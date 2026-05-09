@@ -138,9 +138,18 @@ export const familyAPI = {
     return apiClient.delete(`/family/${familyId}/tree/relationship/${relationshipId}`);
   },
 
-  getFamilyTree: (familyId: number, rootMemberId?: number) => {
+  getFamilyTree: (familyId: number, rootMemberId?: number, includeInactive = false) => {
     return apiClient.get(`/family/${familyId}/tree`, {
-      params: rootMemberId ? { root_member_id: rootMemberId } : {},
+      params: {
+        ...(rootMemberId ? { root_member_id: rootMemberId } : {}),
+        include_inactive: includeInactive,
+      },
+    });
+  },
+
+  getMemberSubtree: (familyId: number, memberId: number, direction = 'down', generations = 5) => {
+    return apiClient.get(`/family/${familyId}/tree/member/${memberId}/subtree`, {
+      params: { direction, generations },
     });
   },
 

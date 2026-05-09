@@ -66,7 +66,7 @@ async def get_available_roots(
     return tree_crud.get_available_roots(db, family_id)
 
 
-@router.get("/member/{member_id}/subtree", response_model=TreeResponse)
+@router.get("/member/{member_id}/subtree", response_model=None)
 async def get_member_subtree(
         family_id: int,
         member_id: int,
