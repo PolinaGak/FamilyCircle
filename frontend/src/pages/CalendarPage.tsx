@@ -626,6 +626,7 @@ return (
                 icon={<UserAddOutlined />}
                 style={{ background: '#7b68ee' }}
                 onClick={() => {
+                    setSelectedEventId(selectedEventDetail.id);
                     setIsEventDetailModalOpen(false);
                     loadAvailableMembersForEvent(selectedEventDetail.id);
                     setIsInviteModalOpen(true);
