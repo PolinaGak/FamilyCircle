@@ -22,7 +22,7 @@ const features = [
     emoji: '💬',
     description: 'Общайтесь в удобном семейном чате',
     color: '#ff6b6b',
-    path: '/chat'
+    path: '/chats'
   },
   {
     id: 3,
